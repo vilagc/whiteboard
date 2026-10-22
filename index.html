@@ -122,6 +122,16 @@
 
     <!-- Right Section: Window Toggles & Actions -->
     <div class="flex items-center space-x-2">
+      <!-- Zoom Controls Indicator -->
+      <div class="flex items-center space-x-1 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-xs text-slate-300">
+        <button onclick="zoomOut()" class="hover:text-white px-1"><i class="fa-solid fa-minus"></i></button>
+        <span id="zoom-level-text" class="font-mono text-[11px] w-10 text-center text-amber-300">100%</span>
+        <button onclick="zoomIn()" class="hover:text-white px-1"><i class="fa-solid fa-plus"></i></button>
+        <button onclick="resetView()" class="hover:text-white px-1 text-[10px] text-slate-400 border-l border-slate-700 ml-1 pl-1.5" title="Reset View">
+          <i class="fa-solid fa-arrows-to-dot"></i>
+        </button>
+      </div>
+
       <!-- Background Switcher Dropdown -->
       <div class="relative group">
         <button class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-1 rounded text-xs flex items-center space-x-1 border border-slate-700">
@@ -187,6 +197,11 @@
       
       <!-- DRAWING TOOLS SECTION -->
       <div class="flex flex-col space-y-1.5 w-full items-center">
+        <!-- Pan / Hand Tool -->
+        <button id="tool-pan" onclick="setTool('pan')" class="w-9 h-9 rounded-md flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-white transition" data-tooltip="Pan Canvas (Space+Drag)">
+          <i class="fa-solid fa-hand"></i>
+        </button>
+
         <!-- Pen Tool -->
         <button id="tool-pen" onclick="setTool('pen')" class="w-9 h-9 rounded-md flex items-center justify-center bg-indigo-600 text-white hover:bg-indigo-500 transition shadow" data-tooltip="Pen">
           <i class="fa-solid fa-pen"></i>
@@ -378,7 +393,17 @@
     const eraserCursor = document.getElementById('eraser-cursor');
 
     let isDrawing = false;
-    let currentTool = 'pen'; // 'pen', 'highlighter', 'eraser'
+    let isPanning = false;
+    let spacePressed = false;
+    let panStartX = 0, panStartY = 0;
+
+    // Infinite Canvas View Transform State
+    let cameraOffset = { x: 0, y: 0 };
+    let cameraZoom = 1;
+    const MIN_ZOOM = 0.2;
+    const MAX_ZOOM = 5.0;
+
+    let currentTool = 'pen'; // 'pen', 'highlighter', 'eraser', 'pan'
     let strokeColor = '#1e293b';
     let highlighterColor = 'rgba(250, 204, 21, 0.15)';
     let currentBackground = 'blank'; // Default to blank canvas
@@ -390,52 +415,155 @@
       eraser: 24
     };
 
-    // Drawing History Stack for Undo/Redo
+    // Vector Path Object Model to support infinite pan & zoom
+    let drawings = []; // Array of stroke objects { tool, color, size, points: [{x,y}, ...] }
+    let currentStroke = null;
+
+    // History Stack for Undo/Redo
     let historyStack = [];
     let historyStep = -1;
-    const MAX_HISTORY = 25;
+    const MAX_HISTORY = 30;
 
-    /* ================= 2. CANVAS RESIZING & BACKGROUNDS ================= */
+    /* ================= 2. CANVAS RESIZING & RENDERING ================= */
     function resizeCanvas() {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvas.width;
-      tempCanvas.height = canvas.height;
-      const tempCtx = tempCanvas.getContext('2d');
-      if (canvas.width > 0 && canvas.height > 0) {
-        tempCtx.drawImage(canvas, 0, 0);
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvasContainer.getBoundingClientRect();
+
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+
+      redrawCanvas();
+    }
+
+    function redrawCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+
+      ctx.save();
+      // Apply High DPI and Camera Transform Matrix
+      ctx.scale(dpr, dpr);
+      drawPatternBackground();
+      
+      ctx.translate(cameraOffset.x, cameraOffset.y);
+      ctx.scale(cameraZoom, cameraZoom);
+
+      // Render vector strokes
+      drawings.forEach(stroke => renderStroke(stroke));
+
+      // Render active live stroke
+      if (currentStroke) {
+        renderStroke(currentStroke);
       }
 
-      canvas.width = canvasContainer.clientWidth;
-      canvas.height = canvasContainer.clientHeight;
+      ctx.restore();
+      
+      // Update Zoom UI
+      const zoomText = document.getElementById('zoom-level-text');
+      if (zoomText) zoomText.innerText = `${Math.round(cameraZoom * 100)}%`;
+    }
 
+    function drawPatternBackground() {
+      const width = canvas.width / (window.devicePixelRatio || 1);
+      const height = canvas.height / (window.devicePixelRatio || 1);
+
+      if (currentBackground === 'blank') return;
+
+      ctx.save();
+      if (currentBackground === 'grid') {
+        const gridSize = 30 * cameraZoom;
+        const offsetX = (cameraOffset.x % gridSize + gridSize) % gridSize;
+        const offsetY = (cameraOffset.y % gridSize + gridSize) % gridSize;
+
+        ctx.strokeStyle = 'rgba(200, 210, 225, 0.5)';
+        ctx.lineWidth = 1;
+
+        for (let x = offsetX; x < width; x += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+          ctx.stroke();
+        }
+
+        for (let y = offsetY; y < height; y += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+        }
+      } else if (currentBackground === 'dots') {
+        const dotSize = 25 * cameraZoom;
+        const offsetX = (cameraOffset.x % dotSize + dotSize) % dotSize;
+        const offsetY = (cameraOffset.y % dotSize + dotSize) % dotSize;
+
+        ctx.fillStyle = 'rgba(150, 160, 180, 0.4)';
+
+        for (let x = offsetX; x < width; x += dotSize) {
+          for (let y = offsetY; y < height; y += dotSize) {
+            ctx.beginPath();
+            ctx.arc(x, y, 1.5 * Math.min(cameraZoom, 1.5), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+      ctx.restore();
+    }
+
+    function renderStroke(stroke) {
+      if (!stroke.points || stroke.points.length === 0) return;
+
+      ctx.save();
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      if (tempCanvas.width > 0 && tempCanvas.height > 0) {
-        ctx.drawImage(tempCanvas, 0, 0);
+
+      if (stroke.tool === 'eraser') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineWidth = stroke.size;
+        ctx.strokeStyle = 'rgba(0,0,0,1)';
+      } else if (stroke.tool === 'highlighter') {
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth = stroke.size;
       } else {
-        saveState();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth = stroke.size;
       }
+
+      ctx.beginPath();
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      ctx.stroke();
+      ctx.restore();
     }
 
     function setCanvasBackground(bgType) {
       currentBackground = bgType;
-      canvas.className = 'absolute inset-0 z-0 cursor-crosshair ';
-      
       const bgNameEl = document.getElementById('current-bg-name');
-      if (bgType === 'grid') {
-        canvas.classList.add('bg-grid');
-        if(bgNameEl) bgNameEl.innerText = 'Grid Paper';
-      } else if (bgType === 'dots') {
-        canvas.classList.add('bg-dots');
-        if(bgNameEl) bgNameEl.innerText = 'Dot Grid';
-      } else {
-        canvas.classList.add('bg-blank');
-        if(bgNameEl) bgNameEl.innerText = 'Blank Canvas';
-      }
+      if (bgType === 'grid' && bgNameEl) bgNameEl.innerText = 'Grid Paper';
+      else if (bgType === 'dots' && bgNameEl) bgNameEl.innerText = 'Dot Grid';
+      else if (bgNameEl) bgNameEl.innerText = 'Blank Canvas';
+      
+      redrawCanvas();
     }
 
-    /* ================= 3. WHITEBOARD DRAWING ENGINE ================= */
-    function getCoordinates(e) {
+    /* ================= 3. INFINITE CANVAS PAN & ZOOM LOGIC ================= */
+    function screenToWorld(screenX, screenY) {
+      return {
+        x: (screenX - cameraOffset.x) / cameraZoom,
+        y: (screenY - cameraOffset.y) / cameraZoom
+      };
+    }
+
+    function getScreenCoordinates(e) {
       const rect = canvas.getBoundingClientRect();
       let x, y;
       if (e.touches && e.touches.length > 0) {
@@ -448,51 +576,122 @@
       return { x, y };
     }
 
-    function startDrawing(e) {
-      initAudioUnlock();
-      isDrawing = true;
-      const pos = getCoordinates(e);
-      ctx.beginPath();
-      ctx.moveTo(pos.x, pos.y);
-      setupContextTool();
+    function zoomIn() {
+      applyZoom(1.2, { x: canvas.width / 2, y: canvas.height / 2 });
     }
 
-    function setupContextTool() {
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+    function zoomOut() {
+      applyZoom(0.8, { x: canvas.width / 2, y: canvas.height / 2 });
+    }
 
-      if (currentTool === 'eraser') {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.lineWidth = toolSizes.eraser;
-      } else if (currentTool === 'highlighter') {
-        ctx.globalCompositeOperation = 'multiply';
-        ctx.strokeStyle = highlighterColor;
-        ctx.lineWidth = toolSizes.highlighter;
-      } else {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = toolSizes.pen;
+    function resetView() {
+      cameraOffset = { x: 0, y: 0 };
+      cameraZoom = 1;
+      redrawCanvas();
+    }
+
+    function applyZoom(zoomFactor, centerScreenPos) {
+      const newZoom = Math.min(Math.max(cameraZoom * zoomFactor, MIN_ZOOM), MAX_ZOOM);
+      
+      // Zoom centered relative to pointer/focus center
+      const worldPos = screenToWorld(centerScreenPos.x, centerScreenPos.y);
+      cameraOffset.x = centerScreenPos.x - worldPos.x * newZoom;
+      cameraOffset.y = centerScreenPos.y - worldPos.y * newZoom;
+      cameraZoom = newZoom;
+
+      redrawCanvas();
+    }
+
+    // Mouse Wheel Zoom
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const screenPos = getScreenCoordinates(e);
+      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+      applyZoom(zoomFactor, screenPos);
+    }, { passive: false });
+
+    // Keyboard Spacebar Panning Support
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !spacePressed) {
+        spacePressed = true;
+        canvas.style.cursor = 'grab';
       }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'Space') {
+        spacePressed = false;
+        canvas.style.cursor = currentTool === 'pan' ? 'grab' : 'crosshair';
+      }
+    });
+
+    /* ================= 4. WHITEBOARD DRAWING ENGINE ================= */
+    function startDrawing(e) {
+      initAudioUnlock();
+      const screenPos = getScreenCoordinates(e);
+
+      // Check if user is triggering Pan (Pan tool selected, Middle Mouse Click, or Spacebar held)
+      if (currentTool === 'pan' || spacePressed || e.button === 1) {
+        isPanning = true;
+        panStartX = screenPos.x - cameraOffset.x;
+        panStartY = screenPos.y - cameraOffset.y;
+        canvas.style.cursor = 'grabbing';
+        return;
+      }
+
+      isDrawing = true;
+      const worldPos = screenToWorld(screenPos.x, screenPos.y);
+
+      currentStroke = {
+        tool: currentTool,
+        color: currentTool === 'highlighter' ? highlighterColor : strokeColor,
+        size: toolSizes[currentTool],
+        points: [worldPos]
+      };
     }
 
     function draw(e) {
-      updateEraserCursorPosition(e);
-      if (!isDrawing) return;
+      const screenPos = getScreenCoordinates(e);
+      updateEraserCursorPosition(screenPos);
+
+      if (isPanning) {
+        cameraOffset.x = screenPos.x - panStartX;
+        cameraOffset.y = screenPos.y - panStartY;
+        redrawCanvas();
+        return;
+      }
+
+      if (!isDrawing || !currentStroke) return;
       e.preventDefault();
-      const pos = getCoordinates(e);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
+
+      const worldPos = screenToWorld(screenPos.x, screenPos.y);
+      currentStroke.points.push(worldPos);
+      redrawCanvas();
     }
 
-    function updateEraserCursorPosition(e) {
+    function stopDrawing() {
+      if (isPanning) {
+        isPanning = false;
+        canvas.style.cursor = spacePressed || currentTool === 'pan' ? 'grab' : 'crosshair';
+      }
+
+      if (isDrawing && currentStroke) {
+        isDrawing = false;
+        drawings.push(currentStroke);
+        currentStroke = null;
+        saveState();
+        redrawCanvas();
+      }
+    }
+
+    function updateEraserCursorPosition(screenPos) {
       if (!eraserCursor) return;
-      if (currentTool === 'eraser') {
-        const pos = getCoordinates(e);
-        const size = toolSizes.eraser;
+      if (currentTool === 'eraser' && !isPanning) {
+        const size = toolSizes.eraser * cameraZoom;
         eraserCursor.style.width = `${size}px`;
         eraserCursor.style.height = `${size}px`;
-        eraserCursor.style.left = `${pos.x}px`;
-        eraserCursor.style.top = `${pos.y}px`;
+        eraserCursor.style.left = `${screenPos.x}px`;
+        eraserCursor.style.top = `${screenPos.y}px`;
         eraserCursor.classList.remove('hidden');
       } else {
         eraserCursor.classList.add('hidden');
@@ -501,14 +700,6 @@
 
     function hideEraserCursor() {
       if (eraserCursor) eraserCursor.classList.add('hidden');
-    }
-
-    function stopDrawing() {
-      if (isDrawing) {
-        ctx.closePath();
-        isDrawing = false;
-        saveState();
-      }
     }
 
     canvas.addEventListener('mousedown', startDrawing);
@@ -520,22 +711,28 @@
     });
 
     canvas.addEventListener('touchstart', (e) => {
-      startDrawing(e);
-      updateEraserCursorPosition(e);
+      if (e.touches.length === 1) {
+        startDrawing(e);
+        updateEraserCursorPosition(getScreenCoordinates(e));
+      }
     }, { passive: false });
+
     canvas.addEventListener('touchmove', draw, { passive: false });
     canvas.addEventListener('touchend', (e) => {
       stopDrawing();
       hideEraserCursor();
     });
 
-    /* ================= 4. TOOLBAR & PALETTE SELECTION ================= */
+    /* ================= 5. TOOLBAR & PALETTE SELECTION ================= */
     function setTool(tool) {
       currentTool = tool;
 
+      document.getElementById('tool-pan').className = `w-9 h-9 rounded-md flex items-center justify-center transition ${tool === 'pan' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`;
       document.getElementById('tool-pen').className = `w-9 h-9 rounded-md flex items-center justify-center transition ${tool === 'pen' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`;
       document.getElementById('tool-highlighter').className = `w-9 h-9 rounded-md flex items-center justify-center transition ${tool === 'highlighter' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`;
       document.getElementById('tool-eraser').className = `w-9 h-9 rounded-md flex items-center justify-center transition ${tool === 'eraser' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`;
+
+      canvas.style.cursor = tool === 'pan' ? 'grab' : 'crosshair';
 
       if (tool !== 'eraser') {
         hideEraserCursor();
@@ -550,8 +747,9 @@
         hlColors.classList.remove('flex');
       }
 
-      // Update size controls to match the selected tool's saved independent size
-      updateSizeControlsUI();
+      if (tool !== 'pan') {
+        updateSizeControlsUI();
+      }
     }
 
     function setColor(color) {
@@ -559,7 +757,7 @@
         highlighterColor = color;
       } else {
         strokeColor = color;
-        if (currentTool === 'eraser') setTool('pen');
+        if (currentTool === 'eraser' || currentTool === 'pan') setTool('pen');
       }
 
       document.querySelectorAll('.color-btn').forEach(btn => {
@@ -578,12 +776,14 @@
       if (isNaN(size)) return;
       size = Math.min(Math.max(size, 1), 100);
 
-      toolSizes[currentTool] = size;
+      if (currentTool !== 'pan') {
+        toolSizes[currentTool] = size;
+      }
       updateSizeControlsUI();
     }
 
     function updateSizeControlsUI() {
-      const activeSize = toolSizes[currentTool];
+      const activeSize = toolSizes[currentTool] || 3;
       const input = document.getElementById('stroke-px-input');
       const slider = document.getElementById('stroke-px-slider');
 
@@ -591,12 +791,13 @@
       if (slider) slider.value = activeSize;
     }
 
-    /* ================= 5. HISTORY (UNDO / REDO / CLEAR) ================= */
+    /* ================= 6. HISTORY (UNDO / REDO / CLEAR) ================= */
     function saveState() {
       if (historyStep < historyStack.length - 1) {
         historyStack = historyStack.slice(0, historyStep + 1);
       }
-      historyStack.push(canvas.toDataURL());
+      // Save deep snapshot copy of vector drawings array
+      historyStack.push(JSON.stringify(drawings));
       if (historyStack.length > MAX_HISTORY) {
         historyStack.shift();
       } else {
@@ -607,33 +808,27 @@
     function undo() {
       if (historyStep > 0) {
         historyStep--;
-        restoreState(historyStack[historyStep]);
+        drawings = JSON.parse(historyStack[historyStep]);
+        redrawCanvas();
       } else if (historyStep === 0) {
         historyStep = -1;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawings = [];
+        redrawCanvas();
       }
     }
 
     function redo() {
       if (historyStep < historyStack.length - 1) {
         historyStep++;
-        restoreState(historyStack[historyStep]);
+        drawings = JSON.parse(historyStack[historyStep]);
+        redrawCanvas();
       }
     }
 
-    function restoreState(dataUrl) {
-      const img = new Image();
-      img.src = dataUrl;
-      img.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.drawImage(img, 0, 0);
-      };
-    }
-
     function clearCanvas() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawings = [];
       saveState();
+      redrawCanvas();
     }
 
     function toggleSidebar() {
@@ -652,27 +847,16 @@
       }
     }
 
-    /* ================= 6. LIVE DIGITAL CLOCK ================= */
-    function updateClock() {
-      const now = new Date();
-      let hours = now.getHours();
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-      const ampm = hours >= 12 ? 'PM' : 'AM';
-      hours = hours % 12;
-      hours = hours ? hours : 12;
+    /* ================= 7. LIVE DIGITAL CLOCK ================= */
+    document.getElementById('toggle-timer-btn').addEventListener('click', toggleTimerWidget);
 
-      document.getElementById('live-clock').innerText = `${hours}:${minutes}:${seconds} ${ampm}`;
-
-      const options = { weekday: 'short', month: 'short', day: 'numeric' };
-      document.getElementById('live-date').innerText = now.toLocaleDateString('en-US', options);
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
-
-    /* ================= 7. WEB AUDIO SYNTHESIZED MARIMBA CHIME ================= */
+    /* ================= 8. COUNTDOWN TIMER & MARIMBA AUDIO ENGINE ================= */
+    let timerDuration = 300; // Default 5 minutes in seconds
+    let timerRemaining = 300;
+    let timerInterval = null;
+    let isTimerRunning = false;
     let audioCtx = null;
-    let alarmInterval = null;
+    let alarmActive = false;
 
     function initAudioUnlock() {
       if (!audioCtx) {
@@ -683,86 +867,26 @@
       }
     }
 
-    function playMarimbaNote(freq, time, duration = 0.8) {
-      if (!audioCtx) initAudioUnlock();
-      
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, time);
-
-      gain.gain.setValueAtTime(0.8, time);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
-
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-
-      osc.start(time);
-      osc.stop(time + duration);
-    }
-
-    function playMarimbaMelody() {
-      initAudioUnlock();
-      if (!audioCtx) return;
-
-      const now = audioCtx.currentTime;
-      playMarimbaNote(523.25, now + 0.0, 0.6); // C5
-      playMarimbaNote(659.25, now + 0.15, 0.6); // E5
-      playMarimbaNote(783.99, now + 0.30, 0.6); // G5
-      playMarimbaNote(1046.50, now + 0.45, 1.2); // C6
-    }
-
-    function testMarimbaSound() {
-      playMarimbaMelody();
-    }
-
-    function triggerAlarm() {
-      playMarimbaMelody();
-      alarmInterval = setInterval(() => {
-        playMarimbaMelody();
-      }, 2500);
-
-      document.getElementById('alarm-banner').classList.remove('hidden');
-    }
-
-    function stopAlarmSound() {
-      if (alarmInterval) {
-        clearInterval(alarmInterval);
-        alarmInterval = null;
+    function toggleTimerWidget() {
+      const widget = document.getElementById('timer-widget');
+      if (widget.classList.contains('hidden')) {
+        widget.classList.remove('hidden');
+      } else {
+        widget.classList.add('hidden');
       }
-      document.getElementById('alarm-banner').classList.add('hidden');
     }
-
-    /* ================= 8. COUNTDOWN TIMER ENGINE ================= */
-    let timerTotalSeconds = 300; // Default 5 mins
-    let timerRemainingSeconds = 300;
-    let timerInterval = null;
-    let isTimerRunning = false;
 
     function updateTimerDisplay() {
-      const mins = Math.floor(timerRemainingSeconds / 60);
-      const secs = timerRemainingSeconds % 60;
-      document.getElementById('timer-display').innerText = 
-        `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      const display = document.getElementById('timer-display');
+      const progress = document.getElementById('timer-progress');
+      
+      const mins = Math.floor(timerRemaining / 60);
+      const secs = timerRemaining % 60;
+      display.innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 
-      const percent = (timerRemainingSeconds / timerTotalSeconds) * 100;
-      document.getElementById('timer-progress').style.width = `${Math.max(0, percent)}%`;
-    }
-
-    function setTimerPreset(minutes) {
-      resetTimer();
-      timerTotalSeconds = Math.round(minutes * 60);
-      timerRemainingSeconds = timerTotalSeconds;
-      updateTimerDisplay();
-    }
-
-    function setCustomTimer() {
-      const input = document.getElementById('custom-minutes');
-      const val = parseInt(input.value);
-      if (val && val > 0) {
-        setTimerPreset(val);
-        input.value = '';
+      if (progress && timerDuration > 0) {
+        const percent = (timerRemaining / timerDuration) * 100;
+        progress.style.width = `${percent}%`;
       }
     }
 
@@ -776,14 +900,16 @@
     }
 
     function startTimer() {
-      if (timerRemainingSeconds <= 0) return;
+      if (timerRemaining <= 0) return;
       isTimerRunning = true;
-      document.getElementById('start-btn-text').innerText = 'Pause';
-      document.getElementById('timer-start-btn').className = 'flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-1.5 rounded flex items-center justify-center space-x-1.5 shadow transition';
+      const startBtnText = document.getElementById('start-btn-text');
+      const startBtnIcon = document.querySelector('#timer-start-btn i');
+      if (startBtnText) startBtnText.innerText = 'Pause';
+      if (startBtnIcon) startBtnIcon.className = 'fa-solid fa-pause text-xs';
 
       timerInterval = setInterval(() => {
-        if (timerRemainingSeconds > 0) {
-          timerRemainingSeconds--;
+        if (timerRemaining > 0) {
+          timerRemaining--;
           updateTimerDisplay();
         } else {
           pauseTimer();
@@ -795,23 +921,103 @@
     function pauseTimer() {
       isTimerRunning = false;
       clearInterval(timerInterval);
-      document.getElementById('start-btn-text').innerText = 'Start';
-      document.getElementById('timer-start-btn').className = 'flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-1.5 rounded flex items-center justify-center space-x-1.5 shadow transition';
+      const startBtnText = document.getElementById('start-btn-text');
+      const startBtnIcon = document.querySelector('#timer-start-btn i');
+      if (startBtnText) startBtnText.innerText = 'Start';
+      if (startBtnIcon) startBtnIcon.className = 'fa-solid fa-play text-xs';
     }
 
     function resetTimer() {
       pauseTimer();
+      timerRemaining = timerDuration;
+      updateTimerDisplay();
       stopAlarmSound();
-      timerRemainingSeconds = timerTotalSeconds;
+    }
+
+    function setTimerPreset(minutes) {
+      pauseTimer();
+      timerDuration = Math.round(minutes * 60);
+      timerRemaining = timerDuration;
       updateTimerDisplay();
     }
 
-    function toggleTimerWidget() {
-      const timerWidget = document.getElementById('timer-widget');
-      timerWidget.classList.toggle('hidden');
+    function setCustomTimer() {
+      const input = document.getElementById('custom-minutes');
+      const mins = parseFloat(input.value);
+      if (!isNaN(mins) && mins > 0) {
+        setTimerPreset(mins);
+      }
     }
 
-    document.getElementById('toggle-timer-btn').addEventListener('click', toggleTimerWidget);
+    /* --- Marimba Synthesizer Sound Generator --- */
+    function playMarimbaTone(freq, timeOffset = 0) {
+      initAudioUnlock();
+      if (!audioCtx) return;
+
+      const now = audioCtx.currentTime + timeOffset;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+
+      // Fast attack, exponential marimba decay
+      gain.gain.setValueAtTime(0.8, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(now);
+      osc.stop(now + 1.2);
+    }
+
+    function testMarimbaSound() {
+      // Warm C-major arpeggio melody
+      const notes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+      notes.forEach((freq, idx) => {
+        playMarimbaTone(freq, idx * 0.15);
+      });
+    }
+
+    let alarmInterval = null;
+
+    function triggerAlarm() {
+      alarmActive = true;
+      const banner = document.getElementById('alarm-banner');
+      if (banner) banner.classList.remove('hidden');
+
+      // Play repeating joyful chime
+      testMarimbaSound();
+      alarmInterval = setInterval(() => {
+        if (alarmActive) {
+          testMarimbaSound();
+        }
+      }, 1500);
+    }
+
+    function stopAlarmSound() {
+      alarmActive = false;
+      if (alarmInterval) clearInterval(alarmInterval);
+      const banner = document.getElementById('alarm-banner');
+      if (banner) banner.classList.add('hidden');
+    }
+
+    /* Update clock display every second */
+    function updateLiveClock() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const dateStr = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+      
+      const clockEl = document.getElementById('live-clock');
+      const dateEl = document.getElementById('live-date');
+      
+      if (clockEl) clockEl.innerText = timeStr;
+      if (dateEl) dateEl.innerText = dateStr;
+    }
+
+    setInterval(updateLiveClock, 1000);
+    updateLiveClock();
 
     /* ================= 9. DESMOS CALCULATOR POP-OUT ENGINE ================= */
     let desmosCalculator = null;
@@ -933,40 +1139,60 @@
     /* ================= 11. EXPORT TO PNG & PDF ================= */
     function getExportCanvas() {
       const exportCanvas = document.createElement('canvas');
-      exportCanvas.width = canvas.width;
-      exportCanvas.height = canvas.height;
+      
+      // Calculate bounding box around all drawings or fall back to view bounds
+      let minX = 0, minY = 0, maxX = canvas.width, maxY = canvas.height;
+
+      if (drawings.length > 0) {
+        let allPoints = drawings.flatMap(d => d.points);
+        minX = Math.min(...allPoints.map(p => p.x)) - 50;
+        minY = Math.min(...allPoints.map(p => p.y)) - 50;
+        maxX = Math.max(...allPoints.map(p => p.x)) + 50;
+        maxY = Math.max(...allPoints.map(p => p.y)) + 50;
+      }
+
+      const exportWidth = Math.max(maxX - minX, 800);
+      const exportHeight = Math.max(maxY - minY, 600);
+
+      exportCanvas.width = exportWidth;
+      exportCanvas.height = exportHeight;
       const expCtx = exportCanvas.getContext('2d');
 
       expCtx.fillStyle = '#ffffff';
       expCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
-      if (currentBackground === 'grid') {
-        expCtx.strokeStyle = 'rgba(200, 210, 225, 0.6)';
-        expCtx.lineWidth = 1;
-        for (let x = 0; x < exportCanvas.width; x += 30) {
-          expCtx.beginPath();
-          expCtx.moveTo(x, 0);
-          expCtx.lineTo(x, exportCanvas.height);
-          expCtx.stroke();
-        }
-        for (let y = 0; y < exportCanvas.height; y += 30) {
-          expCtx.beginPath();
-          expCtx.moveTo(0, y);
-          expCtx.lineTo(exportCanvas.width, y);
-          expCtx.stroke();
-        }
-      } else if (currentBackground === 'dots') {
-        expCtx.fillStyle = 'rgba(150, 160, 180, 0.5)';
-        for (let x = 12; x < exportCanvas.width; x += 25) {
-          for (let y = 12; y < exportCanvas.height; y += 25) {
-            expCtx.beginPath();
-            expCtx.arc(x, y, 1.5, 0, Math.PI * 2);
-            expCtx.fill();
-          }
-        }
-      }
+      // Render vector path drawings relative to bounding box
+      expCtx.save();
+      expCtx.translate(-minX, -minY);
+      
+      drawings.forEach(stroke => {
+        if (!stroke.points || stroke.points.length === 0) return;
+        expCtx.save();
+        expCtx.lineCap = 'round';
+        expCtx.lineJoin = 'round';
 
-      expCtx.drawImage(canvas, 0, 0);
+        if (stroke.tool === 'highlighter') {
+          expCtx.globalCompositeOperation = 'multiply';
+          expCtx.strokeStyle = stroke.color;
+          expCtx.lineWidth = stroke.size;
+        } else if (stroke.tool === 'pen') {
+          expCtx.globalCompositeOperation = 'source-over';
+          expCtx.strokeStyle = stroke.color;
+          expCtx.lineWidth = stroke.size;
+        }
+
+        if (stroke.tool !== 'eraser') {
+          expCtx.beginPath();
+          expCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+          for (let i = 1; i < stroke.points.length; i++) {
+            expCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+          }
+          expCtx.stroke();
+        }
+        expCtx.restore();
+      });
+
+      expCtx.restore();
       return exportCanvas;
     }
 
