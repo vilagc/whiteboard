@@ -47,7 +47,7 @@
 
     /* Floating UI Window Shadows and Styles */
     .floating-window {
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 12px 28px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.22);
     }
 
     /* Custom Scrollbar */
@@ -67,55 +67,63 @@
     [data-tooltip]:hover::after {
       content: attr(data-tooltip);
       position: absolute;
-      left: 110%;
+      left: 115%;
       top: 50%;
       transform: translateY(-50%);
-      background-color: #1f2937;
+      background-color: #0f172a;
       color: #ffffff;
-      padding: 4px 8px;
-      border-radius: 4px;
+      padding: 5px 9px;
+      border-radius: 6px;
       font-size: 11px;
+      font-weight: 500;
       white-space: nowrap;
       z-index: 50;
       pointer-events: none;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     /* Sound alert pulse effect */
     @keyframes alarmPulse {
-      0% { background-color: rgba(239, 68, 68, 0.2); }
-      50% { background-color: rgba(239, 68, 68, 0.8); }
-      100% { background-color: rgba(239, 68, 68, 0.2); }
+      0% { background-color: rgba(239, 68, 68, 0.25); }
+      50% { background-color: rgba(239, 68, 68, 0.85); }
+      100% { background-color: rgba(239, 68, 68, 0.25); }
     }
     .alarm-active {
       animation: alarmPulse 0.8s infinite;
     }
+
+    .tool-btn-active {
+      background-color: #4f46e5 !important;
+      color: #ffffff !important;
+      box-shadow: 0 2px 6px rgba(79, 70, 229, 0.4);
+    }
   </style>
 </head>
-<body class="bg-gray-100 h-screen w-screen flex flex-col relative overflow-hidden">
+<body class="bg-slate-950 h-screen w-screen flex flex-col relative overflow-hidden select-none">
 
   <!-- ================= TOP NAVIGATION BAR ================= -->
   <header class="h-12 bg-slate-900 text-white flex items-center justify-between px-3 z-30 shadow-md border-b border-slate-800 shrink-0">
     <!-- Left Section: Title & Toggle Tools -->
     <div class="flex items-center space-x-3">
-      <button id="toggle-sidebar-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded text-xs flex items-center space-x-1.5 transition border border-slate-700">
+      <button id="toggle-sidebar-btn" class="bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 px-2.5 py-1 rounded-md text-xs flex items-center space-x-1.5 transition border border-slate-700">
         <i class="fa-solid fa-bars"></i>
-        <span id="toggle-sidebar-text">Hide Tools</span>
+        <span id="toggle-sidebar-text" class="hidden sm:inline">Hide Tools</span>
       </button>
       
       <div class="flex items-center space-x-2">
         <i class="fa-solid fa-chalkboard-user text-indigo-400 text-lg"></i>
-        <h1 class="font-bold text-base tracking-wide text-gray-100">Mr. Vilags Workspace</h1>
+        <h1 class="font-bold text-sm md:text-base tracking-wide text-gray-100 truncate">Mr. Vilags Workspace</h1>
       </div>
     </div>
 
-    <!-- Center Section: Clock (Fit in bar, 50% larger time display) -->
+    <!-- Center Section: Clock -->
     <div class="flex items-center justify-center py-0.5 max-h-full">
-      <div class="flex items-center space-x-2 px-2.5 py-0.5 rounded-md bg-slate-800/80 border border-slate-700/60 shadow-inner">
-        <i class="fa-regular fa-clock text-amber-400 text-sm"></i>
+      <div class="flex items-center space-x-2 px-2.5 py-0.5 rounded-md bg-slate-800/90 border border-slate-700/60 shadow-inner">
+        <i class="fa-regular fa-clock text-amber-400 text-xs md:text-sm"></i>
         <div class="flex items-baseline space-x-1.5">
-          <span id="live-clock" class="text-base font-black font-mono tracking-tight text-amber-300 leading-tight">12:00:00 PM</span>
-          <span id="live-date" class="text-[10px] font-medium text-slate-300 leading-tight">Mon, Oct 24</span>
+          <span id="live-clock" class="text-xs md:text-sm font-black font-mono tracking-tight text-amber-300 leading-tight">12:00:00 PM</span>
+          <span id="live-date" class="text-[10px] font-medium text-slate-400 leading-tight hidden md:inline">Mon, Oct 24</span>
         </div>
       </div>
     </div>
@@ -123,97 +131,162 @@
     <!-- Right Section: Window Toggles & Actions -->
     <div class="flex items-center space-x-2">
       <!-- Zoom Controls Indicator -->
-      <div class="flex items-center space-x-1 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-xs text-slate-300">
-        <button onclick="zoomOut()" class="hover:text-white px-1"><i class="fa-solid fa-minus"></i></button>
+      <div class="flex items-center space-x-1 bg-slate-800 border border-slate-700 rounded-md px-1.5 py-0.5 text-xs text-slate-300">
+        <button onclick="zoomOut()" class="hover:text-white px-1 py-0.5 rounded hover:bg-slate-700"><i class="fa-solid fa-minus"></i></button>
         <span id="zoom-level-text" class="font-mono text-[11px] w-10 text-center text-amber-300">100%</span>
-        <button onclick="zoomIn()" class="hover:text-white px-1"><i class="fa-solid fa-plus"></i></button>
-        <button onclick="resetView()" class="hover:text-white px-1 text-[10px] text-slate-400 border-l border-slate-700 ml-1 pl-1.5" title="Reset View">
+        <button onclick="zoomIn()" class="hover:text-white px-1 py-0.5 rounded hover:bg-slate-700"><i class="fa-solid fa-plus"></i></button>
+        <button onclick="resetView()" class="hover:text-white px-1 text-[10px] text-slate-400 border-l border-slate-700 ml-1 pl-1.5" title="Reset View & Position">
           <i class="fa-solid fa-arrows-to-dot"></i>
         </button>
       </div>
 
       <!-- Background Switcher Dropdown -->
       <div class="relative group">
-        <button class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-1 rounded text-xs flex items-center space-x-1 border border-slate-700">
-          <i class="fa-solid fa-border-all text-indigo-300"></i>
-          <span id="current-bg-name" class="hidden sm:inline">Blank Canvas</span>
+        <button class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded-md text-xs flex items-center space-x-1 border border-slate-700">
+          <i class="fa-solid fa-border-all text-indigo-400"></i>
+          <span id="current-bg-name" class="hidden sm:inline">Blank</span>
           <i class="fa-solid fa-chevron-down text-[10px] ml-1"></i>
         </button>
-        <div class="absolute right-0 mt-1 w-36 bg-slate-800 border border-slate-700 rounded shadow-xl hidden group-hover:block z-50">
+        <div class="absolute right-0 mt-1 w-36 bg-slate-900 border border-slate-700 rounded-lg shadow-xl hidden group-hover:block z-50 overflow-hidden py-1">
           <button onclick="setCanvasBackground('blank')" class="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-indigo-600 flex items-center space-x-2">
-            <i class="fa-regular fa-square"></i><span>Blank Canvas</span>
+            <i class="fa-regular fa-square w-4"></i><span>Blank Canvas</span>
           </button>
           <button onclick="setCanvasBackground('grid')" class="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-indigo-600 flex items-center space-x-2">
-            <i class="fa-solid fa-table-cells"></i><span>Grid Paper</span>
+            <i class="fa-solid fa-table-cells w-4"></i><span>Grid Paper</span>
           </button>
           <button onclick="setCanvasBackground('dots')" class="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-indigo-600 flex items-center space-x-2">
-            <i class="fa-solid fa-ellipsis-vertical"></i><span>Dot Grid</span>
+            <i class="fa-solid fa-ellipsis-vertical w-4"></i><span>Dot Grid</span>
           </button>
         </div>
       </div>
 
       <!-- Toggle Timer Widget Button -->
-      <button id="toggle-timer-btn" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-2.5 py-1 rounded text-xs flex items-center space-x-1 border border-slate-700">
+      <button id="toggle-timer-btn" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-2.5 py-1 rounded-md text-xs flex items-center space-x-1 border border-slate-700">
         <i class="fa-solid fa-stopwatch"></i>
         <span class="hidden sm:inline">Timer</span>
       </button>
 
       <!-- Toggle Calculator Button -->
-      <button id="toggle-calc-btn" class="bg-slate-800 hover:bg-slate-700 text-indigo-300 px-2.5 py-1 rounded text-xs flex items-center space-x-1 border border-slate-700">
+      <button id="toggle-calc-btn" class="bg-slate-800 hover:bg-slate-700 text-indigo-300 px-2.5 py-1 rounded-md text-xs flex items-center space-x-1 border border-slate-700">
         <i class="fa-solid fa-calculator"></i>
         <span class="hidden sm:inline">Calculator</span>
       </button>
 
+      <!-- Toggle Wheel Picker Dropdown -->
+      <div class="relative group">
+        <button class="bg-slate-800 hover:bg-slate-700 text-pink-300 px-2.5 py-1 rounded-md text-xs flex items-center space-x-1 border border-slate-700">
+          <i class="fa-solid fa-dharmachakra"></i>
+          <span class="hidden sm:inline">Name Picker</span>
+          <i class="fa-solid fa-chevron-down text-[10px] ml-0.5 text-pink-400"></i>
+        </button>
+        <div class="absolute right-0 mt-1 w-32 bg-slate-900 border border-slate-700 rounded-lg shadow-xl hidden group-hover:block z-50 overflow-hidden py-1">
+          <button onclick="openWheel('1')" class="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-pink-600 flex items-center space-x-2">
+            <i class="fa-regular fa-clock w-4 text-pink-300"></i><span>Hour 1</span>
+          </button>
+          <button onclick="openWheel('3')" class="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-pink-600 flex items-center space-x-2">
+            <i class="fa-regular fa-clock w-4 text-pink-300"></i><span>Hour 3</span>
+          </button>
+          <button onclick="openWheel('4')" class="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-pink-600 flex items-center space-x-2">
+            <i class="fa-regular fa-clock w-4 text-pink-300"></i><span>Hour 4</span>
+          </button>
+          <button onclick="openWheel('6')" class="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-pink-600 flex items-center space-x-2">
+            <i class="fa-regular fa-clock w-4 text-pink-300"></i><span>Hour 6</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Export Options -->
       <div class="relative group">
-        <button class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded text-xs flex items-center space-x-1 font-medium shadow">
+        <button class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-md text-xs flex items-center space-x-1 font-medium shadow">
           <i class="fa-solid fa-download"></i>
-          <span>Export</span>
+          <span class="hidden md:inline">Export</span>
           <i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i>
         </button>
-        <div class="absolute right-0 mt-1 w-32 bg-slate-800 border border-slate-700 rounded shadow-xl hidden group-hover:block z-50">
+        <div class="absolute right-0 mt-1 w-36 bg-slate-900 border border-slate-700 rounded-lg shadow-xl hidden group-hover:block z-50 overflow-hidden py-1">
           <button onclick="exportCanvas('png')" class="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-indigo-600 flex items-center space-x-2">
-            <i class="fa-regular fa-file-image text-green-400"></i><span>Image (PNG)</span>
+            <i class="fa-regular fa-file-image text-green-400 w-4"></i><span>Image (PNG)</span>
           </button>
           <button onclick="exportCanvas('pdf')" class="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-indigo-600 flex items-center space-x-2">
-            <i class="fa-regular fa-file-pdf text-red-400"></i><span>PDF Document</span>
+            <i class="fa-regular fa-file-pdf text-red-400 w-4"></i><span>PDF Document</span>
           </button>
         </div>
       </div>
     </div>
   </header>
 
+  <!-- ================= TAB BAR FOR MULTIPLE WHITEBOARDS ================= -->
+  <div class="h-9 bg-slate-950 text-slate-300 flex items-center px-2 z-20 border-b border-slate-800 shrink-0 overflow-x-auto select-none">
+    <div id="tabs-container" class="flex items-center space-x-1 overflow-x-auto py-1">
+      <!-- Tabs dynamically injected here -->
+    </div>
+    <button onclick="createNewBoard()" class="ml-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-2 py-1 rounded-md text-xs flex items-center space-x-1 transition border border-slate-700/60 shrink-0" title="Create New Whiteboard">
+      <i class="fa-solid fa-plus text-[10px]"></i>
+      <span class="text-[11px] font-medium">New Board</span>
+    </button>
+  </div>
+
   <!-- ================= MAIN WORKSPACE CANVAS AREA ================= -->
-  <main class="flex-1 relative overflow-hidden bg-white" id="canvas-container">
+  <main class="flex-1 relative overflow-hidden bg-white w-full h-full" id="canvas-container">
     
     <!-- Whiteboard Drawing Canvas -->
-    <canvas id="whiteboard" class="absolute inset-0 bg-blank z-0 cursor-crosshair"></canvas>
+    <canvas id="whiteboard" class="absolute inset-0 bg-blank z-0 cursor-crosshair block w-full h-full"></canvas>
 
     <!-- Visual Cursor Indicator for Eraser -->
     <div id="eraser-cursor" class="pointer-events-none absolute hidden rounded-full border border-slate-700 bg-red-400/20 z-10 -translate-x-1/2 -translate-y-1/2 shadow-sm"></div>
 
     <!-- SLIM SINGLE-COLUMN LEFT TOOLBAR -->
-    <aside id="left-sidebar" class="absolute left-2 top-2 z-20 flex flex-col bg-slate-900/95 backdrop-blur-md text-white rounded-lg shadow-2xl border border-slate-700/80 p-1.5 space-y-2 transition-all duration-300 w-12 items-center">
+    <aside id="left-sidebar" class="absolute left-2 top-2 z-20 flex flex-col bg-slate-900/95 backdrop-blur-md text-white rounded-xl shadow-2xl border border-slate-700/80 p-1.5 space-y-1.5 transition-all duration-300 w-12 items-center max-h-[calc(100%-1rem)] overflow-y-auto">
       
       <!-- DRAWING TOOLS SECTION -->
-      <div class="flex flex-col space-y-1.5 w-full items-center">
+      <div class="flex flex-col space-y-1 w-full items-center">
         <!-- Pan / Hand Tool -->
-        <button id="tool-pan" onclick="setTool('pan')" class="w-9 h-9 rounded-md flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-white transition" data-tooltip="Pan Canvas (Space+Drag)">
+        <button id="tool-pan" onclick="setTool('pan')" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-white transition" data-tooltip="Pan Canvas (Space+Drag)">
           <i class="fa-solid fa-hand"></i>
         </button>
 
         <!-- Pen Tool -->
-        <button id="tool-pen" onclick="setTool('pen')" class="w-9 h-9 rounded-md flex items-center justify-center bg-indigo-600 text-white hover:bg-indigo-500 transition shadow" data-tooltip="Pen">
+        <button id="tool-pen" onclick="setTool('pen')" class="w-9 h-9 rounded-lg flex items-center justify-center bg-indigo-600 text-white transition shadow" data-tooltip="Pen">
           <i class="fa-solid fa-pen"></i>
         </button>
 
         <!-- Highlighter Tool -->
-        <button id="tool-highlighter" onclick="setTool('highlighter')" class="w-9 h-9 rounded-md flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-white transition" data-tooltip="Highlighter">
+        <button id="tool-highlighter" onclick="setTool('highlighter')" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-white transition" data-tooltip="Highlighter">
           <i class="fa-solid fa-highlighter"></i>
         </button>
 
+        <!-- Text Tool -->
+        <button id="tool-text" onclick="setTool('text')" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-white transition" data-tooltip="Text Note">
+          <i class="fa-solid fa-font"></i>
+        </button>
+
+        <!-- Shapes Dropdown / Selection -->
+        <div class="relative group w-full flex justify-center">
+          <button id="tool-shape" onclick="setTool(activeShapeTool)" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-white transition" data-tooltip="Shapes">
+            <i id="active-shape-icon" class="fa-solid fa-shapes"></i>
+          </button>
+          
+          <!-- Shape Picker Menu -->
+          <div class="absolute left-11 top-0 hidden group-hover:flex flex-col bg-slate-900 border border-slate-700 p-1 rounded-lg shadow-xl z-50 space-y-1">
+            <button onclick="selectShapeTool('line')" class="w-8 h-8 rounded hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center" title="Line">
+              <i class="fa-solid fa-slash"></i>
+            </button>
+            <button onclick="selectShapeTool('arrow')" class="w-8 h-8 rounded hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center" title="Arrow">
+              <i class="fa-solid fa-arrow-right-long"></i>
+            </button>
+            <button onclick="selectShapeTool('rect')" class="w-8 h-8 rounded hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center" title="Rectangle">
+              <i class="fa-regular fa-square"></i>
+            </button>
+            <button onclick="selectShapeTool('circle')" class="w-8 h-8 rounded hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center" title="Circle">
+              <i class="fa-regular fa-circle"></i>
+            </button>
+            <button onclick="selectShapeTool('triangle')" class="w-8 h-8 rounded hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center" title="Triangle">
+              <i class="fa-solid fa-play -rotate-90"></i>
+            </button>
+          </div>
+        </div>
+
         <!-- Eraser Tool -->
-        <button id="tool-eraser" onclick="setTool('eraser')" class="w-9 h-9 rounded-md flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-white transition" data-tooltip="Eraser">
+        <button id="tool-eraser" onclick="setTool('eraser')" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-white transition" data-tooltip="Eraser">
           <i class="fa-solid fa-eraser"></i>
         </button>
       </div>
@@ -223,34 +296,34 @@
       <!-- COLORS PALETTE -->
       <div id="color-palette" class="flex flex-col space-y-1.5 w-full items-center">
         <!-- Black / Default Dark -->
-        <button onclick="setColor('#1e293b')" class="color-btn w-6 h-6 rounded-full bg-slate-800 border-2 border-gray-400 shadow hover:scale-110 transition" data-color="#1e293b"></button>
+        <button onclick="setColor('#1e293b')" class="color-btn w-6 h-6 rounded-full bg-slate-800 border-2 border-white shadow hover:scale-110 transition" data-color="#1e293b"></button>
         <!-- Blue -->
-        <button onclick="setColor('#2563eb')" class="color-btn w-6 h-6 rounded-full bg-blue-600 border-2 border-gray-400 shadow hover:scale-110 transition" data-color="#2563eb"></button>
+        <button onclick="setColor('#2563eb')" class="color-btn w-6 h-6 rounded-full bg-blue-600 border-2 border-transparent shadow hover:scale-110 transition" data-color="#2563eb"></button>
         <!-- Red -->
-        <button onclick="setColor('#dc2626')" class="color-btn w-6 h-6 rounded-full bg-red-600 border-2 border-gray-400 shadow hover:scale-110 transition" data-color="#dc2626"></button>
+        <button onclick="setColor('#dc2626')" class="color-btn w-6 h-6 rounded-full bg-red-600 border-2 border-transparent shadow hover:scale-110 transition" data-color="#dc2626"></button>
         <!-- Green -->
-        <button onclick="setColor('#16a34a')" class="color-btn w-6 h-6 rounded-full bg-green-600 border-2 border-gray-400 shadow hover:scale-110 transition" data-color="#16a34a"></button>
+        <button onclick="setColor('#16a34a')" class="color-btn w-6 h-6 rounded-full bg-green-600 border-2 border-transparent shadow hover:scale-110 transition" data-color="#16a34a"></button>
         
-        <!-- Highlighter Quick Colors (Updated to lower opacity ~0.15) -->
+        <!-- Highlighter Quick Colors -->
         <div id="highlighter-colors" class="hidden flex-col space-y-1.5 pt-1">
-          <button onclick="setColor('rgba(250, 204, 21, 0.15)')" class="color-btn w-6 h-6 rounded-full bg-yellow-400 border-2 border-gray-400 shadow hover:scale-110 transition" data-color="rgba(250, 204, 21, 0.15)"></button>
-          <button onclick="setColor('rgba(74, 222, 128, 0.15)')" class="color-btn w-6 h-6 rounded-full bg-green-400 border-2 border-gray-400 shadow hover:scale-110 transition" data-color="rgba(74, 222, 128, 0.15)"></button>
-          <button onclick="setColor('rgba(56, 189, 248, 0.15)')" class="color-btn w-6 h-6 rounded-full bg-cyan-400 border-2 border-gray-400 shadow hover:scale-110 transition" data-color="rgba(56, 189, 248, 0.15)"></button>
-          <button onclick="setColor('rgba(244, 114, 182, 0.15)')" class="color-btn w-6 h-6 rounded-full bg-pink-400 border-2 border-gray-400 shadow hover:scale-110 transition" data-color="rgba(244, 114, 182, 0.15)"></button>
+          <button onclick="setColor('rgba(250, 204, 21, 0.25)')" class="color-btn w-6 h-6 rounded-full bg-yellow-400 border-2 border-transparent shadow hover:scale-110 transition" data-color="rgba(250, 204, 21, 0.25)"></button>
+          <button onclick="setColor('rgba(74, 222, 128, 0.25)')" class="color-btn w-6 h-6 rounded-full bg-green-400 border-2 border-transparent shadow hover:scale-110 transition" data-color="rgba(74, 222, 128, 0.25)"></button>
+          <button onclick="setColor('rgba(56, 189, 248, 0.25)')" class="color-btn w-6 h-6 rounded-full bg-cyan-400 border-2 border-transparent shadow hover:scale-110 transition" data-color="rgba(56, 189, 248, 0.25)"></button>
+          <button onclick="setColor('rgba(244, 114, 182, 0.25)')" class="color-btn w-6 h-6 rounded-full bg-pink-400 border-2 border-transparent shadow hover:scale-110 transition" data-color="rgba(244, 114, 182, 0.25)"></button>
         </div>
       </div>
 
       <div class="w-full border-t border-slate-700/80 my-1"></div>
 
-      <!-- TOOL SIZE CONTROLLER (PIXEL ADJUSTABLE & TOOL INDEPENDENT) -->
+      <!-- TOOL SIZE CONTROLLER -->
       <div class="flex flex-col items-center space-y-1 w-full">
-        <span class="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">Size</span>
+        <span class="text-[9px] font-mono text-slate-400 uppercase tracking-tighter">Size</span>
         <div class="relative group flex flex-col items-center">
           <input type="number" id="stroke-px-input" min="1" max="100" value="3" onchange="setToolSize(this.value)" class="w-9 bg-slate-800 border border-slate-700 text-white text-xs font-mono font-bold rounded py-0.5 text-center focus:outline-none focus:border-indigo-500">
-          <span id="px-unit" class="text-[9px] text-slate-400 mt-0.5">px</span>
+          <span id="px-unit" class="text-[8px] text-slate-400 mt-0.5">px</span>
 
-          <!-- Popup slider widget on hover/focus (Only slider) -->
-          <div class="absolute left-11 top-1/2 -translate-y-1/2 hidden group-hover:flex group-focus-within:flex bg-slate-800 border border-slate-700 p-2 rounded-lg shadow-xl z-50 items-center w-28">
+          <!-- Popup slider widget on hover/focus -->
+          <div class="absolute left-11 top-1/2 -translate-y-1/2 hidden group-hover:flex group-focus-within:flex bg-slate-900 border border-slate-700 p-2 rounded-lg shadow-xl z-50 items-center w-28">
             <input type="range" id="stroke-px-slider" min="1" max="100" value="3" oninput="setToolSize(this.value)" class="w-full accent-indigo-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg">
           </div>
         </div>
@@ -259,15 +332,14 @@
       <div class="w-full border-t border-slate-700/80 my-1"></div>
 
       <!-- UNDO / REDO / CLEAR -->
-      <div class="flex flex-col space-y-1.5 w-full items-center">
-        <button onclick="undo()" class="w-9 h-9 rounded-md flex items-center justify-center text-slate-300 hover:bg-slate-800 hover:text-white transition" data-tooltip="Undo">
+      <div class="flex flex-col space-y-1 w-full items-center">
+        <button onclick="undo()" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-300 hover:bg-slate-800 hover:text-white transition" data-tooltip="Undo">
           <i class="fa-solid fa-rotate-left"></i>
         </button>
-        <button onclick="redo()" class="w-9 h-9 rounded-md flex items-center justify-center text-slate-300 hover:bg-slate-800 hover:text-white transition" data-tooltip="Redo">
+        <button onclick="redo()" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-300 hover:bg-slate-800 hover:text-white transition" data-tooltip="Redo">
           <i class="fa-solid fa-rotate-right"></i>
         </button>
-        <!-- Trash Can Clears Entire Screen -->
-        <button onclick="clearCanvas()" class="w-9 h-9 rounded-md flex items-center justify-center text-red-400 hover:bg-red-500 hover:text-white transition" data-tooltip="Clear Board">
+        <button onclick="clearCanvas()" class="w-9 h-9 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-500 hover:text-white transition" data-tooltip="Clear Board">
           <i class="fa-solid fa-trash-can"></i>
         </button>
       </div>
@@ -279,7 +351,6 @@
       <i class="fa-solid fa-screwdriver-wrench text-xs"></i>
       <span class="text-xs font-semibold pr-1">Tools</span>
     </button>
-
 
     <!-- ================= FLOATING COUNTDOWN TIMER WIDGET ================= -->
     <div id="timer-widget" class="floating-window absolute top-4 right-4 z-20 bg-slate-900/95 backdrop-blur-md text-white rounded-xl shadow-2xl border border-slate-700/80 w-72 hidden overflow-hidden transition-all">
@@ -311,7 +382,7 @@
           <div id="timer-progress" class="bg-amber-400 h-full w-full transition-all duration-300"></div>
         </div>
 
-        <!-- Quick Preset Buttons (30s, 1m, 2m, 5m, 10m) -->
+        <!-- Quick Preset Buttons -->
         <div class="grid grid-cols-5 gap-1 w-full my-2">
           <button onclick="setTimerPreset(0.5)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs py-1 rounded font-medium border border-slate-700">30s</button>
           <button onclick="setTimerPreset(1)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs py-1 rounded font-medium border border-slate-700">1m</button>
@@ -340,15 +411,21 @@
       </div>
     </div>
 
-
     <!-- ================= FLOATING DESMOS CALCULATOR POP-OUT WINDOW ================= -->
-    <div id="calc-popout" class="floating-window absolute top-12 left-20 z-20 bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700/80 w-[420px] h-[520px] hidden flex-col overflow-hidden transition-all">
+    <div id="calc-popout" class="floating-window absolute top-12 left-20 z-20 bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700/80 w-[430px] h-[520px] hidden flex-col overflow-hidden transition-all">
       <!-- Title Header Bar (Draggable) -->
-      <div id="calc-header" class="bg-slate-800 px-3 py-2 flex items-center justify-between cursor-move border-b border-slate-700">
+      <div id="calc-header" class="bg-slate-800 px-3 py-2 flex items-center justify-between cursor-move border-b border-slate-700 shrink-0">
         <div class="flex items-center space-x-2 text-indigo-400 font-semibold text-xs tracking-wider uppercase">
           <i class="fa-solid fa-calculator"></i>
-          <span>Desmos Scientific Calculator</span>
+          <span>Desmos Calculator</span>
         </div>
+
+        <!-- Mode selector -->
+        <div class="flex items-center space-x-1 text-[11px] bg-slate-900 p-0.5 rounded border border-slate-700">
+          <button onclick="switchDesmosMode('scientific')" id="calc-mode-sci" class="px-1.5 py-0.5 rounded bg-indigo-600 text-white font-medium">Sci</button>
+          <button onclick="switchDesmosMode('four-function')" id="calc-mode-4f" class="px-1.5 py-0.5 rounded text-slate-400 hover:text-white">Basic</button>
+        </div>
+
         <div class="flex items-center space-x-1.5">
           <button onclick="minimizeCalc()" class="text-slate-400 hover:text-white px-1.5 py-0.5 rounded hover:bg-slate-700 text-xs">
             <i class="fa-solid fa-minus"></i>
@@ -368,13 +445,46 @@
       </div>
     </div>
 
+    <!-- ================= FLOATING NAME PICKER WHEEL ================= -->
+    <div id="wheel-popout" class="floating-window absolute top-16 left-[20%] z-30 bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700/80 w-[350px] hidden flex-col overflow-hidden transition-all">
+      <!-- Title Header Bar (Draggable) -->
+      <div id="wheel-header" class="bg-slate-800 px-3 py-2 flex items-center justify-between cursor-move border-b border-slate-700 shrink-0">
+        <div class="flex items-center space-x-2 text-pink-400 font-semibold text-xs tracking-wider uppercase">
+          <i class="fa-solid fa-dharmachakra"></i>
+          <span>Name Picker <span id="wheel-hour-label" class="text-white ml-1 font-bold"></span></span>
+        </div>
+        <button onclick="closeWheelPopout()" class="text-slate-400 hover:text-red-400 px-1.5 py-0.5 rounded hover:bg-slate-700 text-xs">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      
+      <div class="p-3 flex flex-col items-center bg-slate-800/50">
+        <div class="relative w-[280px] h-[280px] flex items-center justify-center mt-2 mb-2">
+          <canvas id="wheel-canvas" width="560" height="560" class="w-full h-full drop-shadow-xl"></canvas>
+          <!-- Pointer (Triangle on the right) -->
+          <div class="absolute right-[-15px] top-1/2 -translate-y-1/2 w-0 h-0 border-t-[15px] border-t-transparent border-b-[15px] border-b-transparent border-r-[25px] border-r-pink-500 drop-shadow-lg z-10"></div>
+          <!-- Spin Button -->
+          <button id="spin-btn" onclick="spinWheel()" class="absolute w-16 h-16 bg-white rounded-full text-slate-900 font-bold text-lg shadow-[0_4px_15px_rgba(0,0,0,0.5)] hover:scale-105 active:scale-95 transition-transform z-10 border-4 border-slate-200 cursor-pointer">
+            SPIN
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Winner Banner -->
+    <div id="winner-banner" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] bg-gradient-to-br from-pink-500 to-purple-600 text-white px-10 py-8 rounded-2xl shadow-[0_0_50px_rgba(236,72,153,0.6)] border-4 border-white flex flex-col items-center animate-bounce">
+      <h2 class="text-xl font-bold uppercase tracking-widest mb-2 text-pink-200 drop-shadow">Selected Student</h2>
+      <div id="winner-name" class="text-6xl font-black drop-shadow-lg mb-6">Name</div>
+      <button onclick="document.getElementById('winner-banner').classList.add('hidden')" class="bg-white text-purple-700 hover:bg-pink-50 px-8 py-2.5 rounded-full font-bold transition shadow-lg text-lg">Close</button>
+    </div>
+
     <!-- ================= TIME IS UP SOUND & VISUAL ALARM BANNER ================= -->
     <div id="alarm-banner" class="hidden absolute inset-x-0 top-16 z-50 mx-auto w-11/12 max-w-lg bg-red-600 text-white p-4 rounded-xl shadow-2xl border-2 border-red-400 alarm-active flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <i class="fa-solid fa-bell text-3xl animate-bounce text-yellow-300"></i>
         <div>
           <h3 class="font-extrabold text-lg uppercase tracking-wider">Time is Up!</h3>
-          <p class="text-xs text-red-100">Great job on your math work!</p>
+          <p class="text-xs text-red-100">Great job on your workspace task!</p>
         </div>
       </div>
       <button onclick="stopAlarmSound()" class="bg-white text-red-700 hover:bg-red-100 font-bold px-4 py-2 rounded-lg text-sm shadow transition">
@@ -397,37 +507,174 @@
     let spacePressed = false;
     let panStartX = 0, panStartY = 0;
 
-    // Infinite Canvas View Transform State
-    let cameraOffset = { x: 0, y: 0 };
-    let cameraZoom = 1;
-    const MIN_ZOOM = 0.2;
-    const MAX_ZOOM = 5.0;
-
-    let currentTool = 'pen'; // 'pen', 'highlighter', 'eraser', 'pan'
+    let currentTool = 'pen'; // 'pen', 'highlighter', 'text', 'line', 'arrow', 'rect', 'circle', 'triangle', 'eraser', 'pan'
+    let activeShapeTool = 'line';
     let strokeColor = '#1e293b';
-    let highlighterColor = 'rgba(250, 204, 21, 0.15)';
-    let currentBackground = 'blank'; // Default to blank canvas
+    let highlighterColor = 'rgba(250, 204, 21, 0.25)';
+    let currentStroke = null;
+    let activeTextElement = null;
 
-    // Independent tool sizes saved in pixels
+    // Touch gesture pinch/zoom tracking
+    let initialPinchDistance = null;
+    let initialZoom = 1;
+
+    // Tool sizes saved in pixels
     const toolSizes = {
       pen: 3,
-      highlighter: 16,
+      highlighter: 18,
+      text: 20,
+      line: 3,
+      arrow: 3,
+      rect: 3,
+      circle: 3,
+      triangle: 3,
       eraser: 24
     };
 
-    // Vector Path Object Model to support infinite pan & zoom
-    let drawings = []; // Array of stroke objects { tool, color, size, points: [{x,y}, ...] }
-    let currentStroke = null;
+    // MULTIPLE BOARDS TAB MANAGEMENT
+    let boards = [];
+    let activeBoardId = null;
+    let boardIdCounter = 1;
 
-    // History Stack for Undo/Redo
+    // Active board state references
+    let cameraOffset = { x: 0, y: 0 };
+    let cameraZoom = 1;
+    let currentBackground = 'blank';
+    let drawings = [];
     let historyStack = [];
     let historyStep = -1;
-    const MAX_HISTORY = 30;
+
+    const MIN_ZOOM = 0.25;
+    const MAX_ZOOM = 5.0;
+    const MAX_HISTORY = 35;
+
+    /* ================= MULTIPLE BOARDS ENGINE ================= */
+    function createNewBoard(title = null) {
+      saveActiveBoardState();
+
+      const newId = 'board_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      const newBoard = {
+        id: newId,
+        title: title || `Board ${boardIdCounter++}`,
+        drawings: [],
+        cameraOffset: { x: 0, y: 0 },
+        cameraZoom: 1,
+        background: 'blank',
+        historyStack: [],
+        historyStep: -1
+      };
+
+      boards.push(newBoard);
+      switchBoard(newId);
+    }
+
+    function switchBoard(id) {
+      if (activeBoardId === id) return;
+
+      saveActiveBoardState();
+
+      activeBoardId = id;
+      const board = boards.find(b => b.id === id);
+      if (!board) return;
+
+      drawings = board.drawings;
+      cameraOffset = { ...board.cameraOffset };
+      cameraZoom = board.cameraZoom;
+      currentBackground = board.background;
+      historyStack = board.historyStack;
+      historyStep = board.historyStep;
+
+      setCanvasBackground(currentBackground);
+      renderTabs();
+      redrawCanvas();
+    }
+
+    function saveActiveBoardState() {
+      if (!activeBoardId) return;
+      const board = boards.find(b => b.id === activeBoardId);
+      if (board) {
+        board.drawings = drawings;
+        board.cameraOffset = { ...cameraOffset };
+        board.cameraZoom = cameraZoom;
+        board.background = currentBackground;
+        board.historyStack = historyStack;
+        board.historyStep = historyStep;
+      }
+    }
+
+    function closeBoard(id, event) {
+      if (event) event.stopPropagation();
+
+      if (boards.length <= 1) {
+        drawings = [];
+        historyStack = [];
+        historyStep = -1;
+        saveState();
+        redrawCanvas();
+        return;
+      }
+
+      const index = boards.findIndex(b => b.id === id);
+      boards = boards.filter(b => b.id !== id);
+
+      if (activeBoardId === id) {
+        const nextBoard = boards[Math.max(0, index - 1)];
+        activeBoardId = null;
+        switchBoard(nextBoard.id);
+      } else {
+        renderTabs();
+      }
+    }
+
+    function renameBoard(id, event) {
+      if (event) event.stopPropagation();
+      const board = boards.find(b => b.id === id);
+      if (!board) return;
+
+      const newTitle = prompt('Rename Whiteboard Tab:', board.title);
+      if (newTitle && newTitle.trim() !== '') {
+        board.title = newTitle.trim();
+        renderTabs();
+      }
+    }
+
+    function renderTabs() {
+      const container = document.getElementById('tabs-container');
+      if (!container) return;
+
+      container.innerHTML = '';
+      boards.forEach(board => {
+        const isActive = board.id === activeBoardId;
+        const tabEl = document.createElement('div');
+        tabEl.className = `flex items-center space-x-1.5 px-3 py-1 rounded-t-md text-xs cursor-pointer transition border-t border-x ${
+          isActive
+            ? 'bg-slate-900 text-white border-slate-700 font-semibold shadow-inner'
+            : 'bg-slate-900/40 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'
+        }`;
+
+        tabEl.onclick = () => switchBoard(board.id);
+
+        tabEl.innerHTML = `
+          <i class="fa-solid fa-pen-ruler text-[10px] ${isActive ? 'text-indigo-400' : 'text-slate-500'}"></i>
+          <span class="max-w-[110px] truncate" title="${board.title}">${board.title}</span>
+          <button onclick="renameBoard('${board.id}', event)" class="hover:text-amber-300 text-[10px] opacity-60 hover:opacity-100 px-0.5" title="Rename Board">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          <button onclick="closeBoard('${board.id}', event)" class="hover:text-red-400 text-[10px] opacity-60 hover:opacity-100 px-0.5" title="Close Board">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        `;
+
+        container.appendChild(tabEl);
+      });
+    }
 
     /* ================= 2. CANVAS RESIZING & RENDERING ================= */
     function resizeCanvas() {
       const dpr = window.devicePixelRatio || 1;
       const rect = canvasContainer.getBoundingClientRect();
+
+      if (rect.width === 0 || rect.height === 0) return;
 
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
@@ -446,24 +693,20 @@
       ctx.restore();
 
       ctx.save();
-      // Apply High DPI and Camera Transform Matrix
       ctx.scale(dpr, dpr);
       drawPatternBackground();
       
       ctx.translate(cameraOffset.x, cameraOffset.y);
       ctx.scale(cameraZoom, cameraZoom);
 
-      // Render vector strokes
       drawings.forEach(stroke => renderStroke(stroke));
 
-      // Render active live stroke
       if (currentStroke) {
         renderStroke(currentStroke);
       }
 
       ctx.restore();
       
-      // Update Zoom UI
       const zoomText = document.getElementById('zoom-level-text');
       if (zoomText) zoomText.innerText = `${Math.round(cameraZoom * 100)}%`;
     }
@@ -535,22 +778,73 @@
         ctx.lineWidth = stroke.size;
       }
 
-      ctx.beginPath();
-      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      const p1 = stroke.points[0];
+      const p2 = stroke.points[stroke.points.length - 1];
 
-      for (let i = 1; i < stroke.points.length; i++) {
-        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      // Handle Shapes vs Freehand Pen
+      if (['line', 'arrow', 'rect', 'circle', 'triangle'].includes(stroke.tool)) {
+        ctx.beginPath();
+        if (stroke.tool === 'line') {
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+        } else if (stroke.tool === 'arrow') {
+          drawArrow(ctx, p1.x, p1.y, p2.x, p2.y, stroke.size);
+        } else if (stroke.tool === 'rect') {
+          ctx.strokeRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+        } else if (stroke.tool === 'circle') {
+          const radius = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+          ctx.arc(p1.x, p1.y, radius, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (stroke.tool === 'triangle') {
+          ctx.moveTo(p1.x + (p2.x - p1.x) / 2, p1.y);
+          ctx.lineTo(p1.x, p2.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.closePath();
+          ctx.stroke();
+        }
+      } else if (stroke.tool === 'text') {
+        ctx.font = `${stroke.size}px sans-serif`;
+        ctx.fillStyle = stroke.color;
+        ctx.textBaseline = 'top';
+        ctx.fillText(stroke.text || '', p1.x, p1.y);
+      } else {
+        // Pen / Eraser / Highlighter Freehand
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        for (let i = 1; i < stroke.points.length; i++) {
+          ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();
+
       ctx.restore();
+    }
+
+    function drawArrow(ctx, fromx, fromy, tox, toy, size) {
+      const headlen = Math.max(12, size * 3);
+      const dx = tox - fromx;
+      const dy = toy - fromy;
+      const angle = Math.atan2(dy, dx);
+      ctx.moveTo(fromx, fromy);
+      ctx.lineTo(tox, toy);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(tox, toy);
+      ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+      ctx.lineTo(tox, toy);
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.fill();
     }
 
     function setCanvasBackground(bgType) {
       currentBackground = bgType;
       const bgNameEl = document.getElementById('current-bg-name');
-      if (bgType === 'grid' && bgNameEl) bgNameEl.innerText = 'Grid Paper';
-      else if (bgType === 'dots' && bgNameEl) bgNameEl.innerText = 'Dot Grid';
-      else if (bgNameEl) bgNameEl.innerText = 'Blank Canvas';
+      if (bgType === 'grid' && bgNameEl) bgNameEl.innerText = 'Grid';
+      else if (bgType === 'dots' && bgNameEl) bgNameEl.innerText = 'Dots';
+      else if (bgNameEl) bgNameEl.innerText = 'Blank';
       
       redrawCanvas();
     }
@@ -593,7 +887,6 @@
     function applyZoom(zoomFactor, centerScreenPos) {
       const newZoom = Math.min(Math.max(cameraZoom * zoomFactor, MIN_ZOOM), MAX_ZOOM);
       
-      // Zoom centered relative to pointer/focus center
       const worldPos = screenToWorld(centerScreenPos.x, centerScreenPos.y);
       cameraOffset.x = centerScreenPos.x - worldPos.x * newZoom;
       cameraOffset.y = centerScreenPos.y - worldPos.y * newZoom;
@@ -610,7 +903,7 @@
       applyZoom(zoomFactor, screenPos);
     }, { passive: false });
 
-    // Keyboard Spacebar Panning Support
+    // Keyboard Spacebar Panning
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && !spacePressed) {
         spacePressed = true;
@@ -628,9 +921,16 @@
     /* ================= 4. WHITEBOARD DRAWING ENGINE ================= */
     function startDrawing(e) {
       initAudioUnlock();
+
+      if (currentTool === 'text') {
+        const screenPos = getScreenCoordinates(e);
+        const worldPos = screenToWorld(screenPos.x, screenPos.y);
+        spawnTextInput(worldPos, screenPos);
+        return;
+      }
+
       const screenPos = getScreenCoordinates(e);
 
-      // Check if user is triggering Pan (Pan tool selected, Middle Mouse Click, or Spacebar held)
       if (currentTool === 'pan' || spacePressed || e.button === 1) {
         isPanning = true;
         panStartX = screenPos.x - cameraOffset.x;
@@ -645,7 +945,7 @@
       currentStroke = {
         tool: currentTool,
         color: currentTool === 'highlighter' ? highlighterColor : strokeColor,
-        size: toolSizes[currentTool],
+        size: toolSizes[currentTool] || 3,
         points: [worldPos]
       };
     }
@@ -665,7 +965,13 @@
       e.preventDefault();
 
       const worldPos = screenToWorld(screenPos.x, screenPos.y);
-      currentStroke.points.push(worldPos);
+
+      if (['line', 'arrow', 'rect', 'circle', 'triangle'].includes(currentTool)) {
+        currentStroke.points = [currentStroke.points[0], worldPos];
+      } else {
+        currentStroke.points.push(worldPos);
+      }
+      
       redrawCanvas();
     }
 
@@ -679,6 +985,21 @@
         isDrawing = false;
         drawings.push(currentStroke);
         currentStroke = null;
+        saveState();
+        redrawCanvas();
+      }
+    }
+
+    function spawnTextInput(worldPos, screenPos) {
+      const userText = prompt("Enter text for whiteboard note:");
+      if (userText && userText.trim() !== '') {
+        drawings.push({
+          tool: 'text',
+          color: strokeColor,
+          size: toolSizes.text || 20,
+          text: userText.trim(),
+          points: [worldPos]
+        });
         saveState();
         redrawCanvas();
       }
@@ -710,15 +1031,44 @@
       hideEraserCursor();
     });
 
+    // Touch Event Handling with Pinch Zoom support
     canvas.addEventListener('touchstart', (e) => {
       if (e.touches.length === 1) {
         startDrawing(e);
         updateEraserCursorPosition(getScreenCoordinates(e));
+      } else if (e.touches.length === 2) {
+        isDrawing = false;
+        currentStroke = null;
+        initialPinchDistance = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        initialZoom = cameraZoom;
       }
     }, { passive: false });
 
-    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1) {
+        draw(e);
+      } else if (e.touches.length === 2 && initialPinchDistance) {
+        e.preventDefault();
+        const currentDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const factor = currentDist / initialPinchDistance;
+        const rect = canvas.getBoundingClientRect();
+        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+        
+        applyZoom(factor * (initialZoom / cameraZoom), { x: midX, y: midY });
+      }
+    }, { passive: false });
+
     canvas.addEventListener('touchend', (e) => {
+      if (e.touches.length < 2) {
+        initialPinchDistance = null;
+      }
       stopDrawing();
       hideEraserCursor();
     });
@@ -727,12 +1077,20 @@
     function setTool(tool) {
       currentTool = tool;
 
-      document.getElementById('tool-pan').className = `w-9 h-9 rounded-md flex items-center justify-center transition ${tool === 'pan' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`;
-      document.getElementById('tool-pen').className = `w-9 h-9 rounded-md flex items-center justify-center transition ${tool === 'pen' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`;
-      document.getElementById('tool-highlighter').className = `w-9 h-9 rounded-md flex items-center justify-center transition ${tool === 'highlighter' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`;
-      document.getElementById('tool-eraser').className = `w-9 h-9 rounded-md flex items-center justify-center transition ${tool === 'eraser' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`;
+      const toolButtons = ['pan', 'pen', 'highlighter', 'text', 'shape', 'eraser'];
+      toolButtons.forEach(btnKey => {
+        const el = document.getElementById(`tool-${btnKey}`);
+        if (!el) return;
+        
+        const isShapeActive = ['line', 'arrow', 'rect', 'circle', 'triangle'].includes(tool) && btnKey === 'shape';
+        if (tool === btnKey || isShapeActive) {
+          el.classList.add('tool-btn-active');
+        } else {
+          el.classList.remove('tool-btn-active');
+        }
+      });
 
-      canvas.style.cursor = tool === 'pan' ? 'grab' : 'crosshair';
+      canvas.style.cursor = tool === 'pan' ? 'grab' : tool === 'text' ? 'text' : 'crosshair';
 
       if (tool !== 'eraser') {
         hideEraserCursor();
@@ -752,6 +1110,19 @@
       }
     }
 
+    function selectShapeTool(shape) {
+      activeShapeTool = shape;
+      const icon = document.getElementById('active-shape-icon');
+      if (icon) {
+        if (shape === 'line') icon.className = 'fa-solid fa-slash';
+        else if (shape === 'arrow') icon.className = 'fa-solid fa-arrow-right-long';
+        else if (shape === 'rect') icon.className = 'fa-regular fa-square';
+        else if (shape === 'circle') icon.className = 'fa-regular fa-circle';
+        else if (shape === 'triangle') icon.className = 'fa-solid fa-play -rotate-90';
+      }
+      setTool(shape);
+    }
+
     function setColor(color) {
       if (currentTool === 'highlighter') {
         highlighterColor = color;
@@ -763,10 +1134,10 @@
       document.querySelectorAll('.color-btn').forEach(btn => {
         if (btn.getAttribute('data-color') === color) {
           btn.classList.add('border-white', 'scale-110');
-          btn.classList.remove('border-gray-400');
+          btn.classList.remove('border-transparent');
         } else {
           btn.classList.remove('border-white', 'scale-110');
-          btn.classList.add('border-gray-400');
+          btn.classList.add('border-transparent');
         }
       });
     }
@@ -796,7 +1167,6 @@
       if (historyStep < historyStack.length - 1) {
         historyStack = historyStack.slice(0, historyStep + 1);
       }
-      // Save deep snapshot copy of vector drawings array
       historyStack.push(JSON.stringify(drawings));
       if (historyStack.length > MAX_HISTORY) {
         historyStack.shift();
@@ -851,7 +1221,7 @@
     document.getElementById('toggle-timer-btn').addEventListener('click', toggleTimerWidget);
 
     /* ================= 8. COUNTDOWN TIMER & MARIMBA AUDIO ENGINE ================= */
-    let timerDuration = 300; // Default 5 minutes in seconds
+    let timerDuration = 300;
     let timerRemaining = 300;
     let timerInterval = null;
     let isTimerRunning = false;
@@ -949,7 +1319,6 @@
       }
     }
 
-    /* --- Marimba Synthesizer Sound Generator --- */
     function playMarimbaTone(freq, timeOffset = 0) {
       initAudioUnlock();
       if (!audioCtx) return;
@@ -961,7 +1330,6 @@
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, now);
 
-      // Fast attack, exponential marimba decay
       gain.gain.setValueAtTime(0.8, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
 
@@ -973,8 +1341,7 @@
     }
 
     function testMarimbaSound() {
-      // Warm C-major arpeggio melody
-      const notes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+      const notes = [261.63, 329.63, 392.00, 523.25];
       notes.forEach((freq, idx) => {
         playMarimbaTone(freq, idx * 0.15);
       });
@@ -987,7 +1354,6 @@
       const banner = document.getElementById('alarm-banner');
       if (banner) banner.classList.remove('hidden');
 
-      // Play repeating joyful chime
       testMarimbaSound();
       alarmInterval = setInterval(() => {
         if (alarmActive) {
@@ -1003,7 +1369,6 @@
       if (banner) banner.classList.add('hidden');
     }
 
-    /* Update clock display every second */
     function updateLiveClock() {
       const now = new Date();
       const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -1021,23 +1386,33 @@
 
     /* ================= 9. DESMOS CALCULATOR POP-OUT ENGINE ================= */
     let desmosCalculator = null;
+    let currentDesmosType = 'scientific';
     let isCalcMaximized = false;
 
-    function initDesmosCalculator() {
+    function initDesmosCalculator(type = 'scientific') {
       const elt = document.getElementById('desmos-calculator-target');
       if (!elt) return;
 
-      if (typeof Desmos !== 'undefined' && Desmos.ScientificCalculator) {
-        if (!desmosCalculator) {
-          desmosCalculator = Desmos.ScientificCalculator(elt, {
-            border: false,
-            expressions: true
-          });
+      elt.innerHTML = '';
+
+      if (typeof Desmos !== 'undefined') {
+        if (type === 'scientific' && Desmos.ScientificCalculator) {
+          desmosCalculator = Desmos.ScientificCalculator(elt, { border: false });
+        } else if (type === 'four-function' && Desmos.FourFunctionCalculator) {
+          desmosCalculator = Desmos.FourFunctionCalculator(elt, { border: false });
+        } else if (Desmos.GraphingCalculator) {
+          desmosCalculator = Desmos.GraphingCalculator(elt, { border: false });
         }
       } else {
-        // Fallback embed if Desmos script failed or hasn't loaded yet
-        elt.innerHTML = `<iframe src="https://www.desmos.com/scientific" class="w-full h-full border-0"></iframe>`;
+        elt.innerHTML = `<iframe src="https://www.desmos.com/${type === 'scientific' ? 'scientific' : 'fourfunction'}" class="w-full h-full border-0"></iframe>`;
       }
+    }
+
+    function switchDesmosMode(mode) {
+      currentDesmosType = mode;
+      document.getElementById('calc-mode-sci').className = mode === 'scientific' ? 'px-1.5 py-0.5 rounded bg-indigo-600 text-white font-medium' : 'px-1.5 py-0.5 rounded text-slate-400 hover:text-white';
+      document.getElementById('calc-mode-4f').className = mode === 'four-function' ? 'px-1.5 py-0.5 rounded bg-indigo-600 text-white font-medium' : 'px-1.5 py-0.5 rounded text-slate-400 hover:text-white';
+      initDesmosCalculator(mode);
     }
 
     function toggleCalcPopout() {
@@ -1045,7 +1420,7 @@
       if (popout.classList.contains('hidden')) {
         popout.classList.remove('hidden');
         popout.classList.add('flex');
-        initDesmosCalculator();
+        initDesmosCalculator(currentDesmosType);
       } else {
         popout.classList.add('hidden');
         popout.classList.remove('flex');
@@ -1060,7 +1435,7 @@
     function maximizeCalc() {
       const popout = document.getElementById('calc-popout');
       if (isCalcMaximized) {
-        popout.style.width = '420px';
+        popout.style.width = '430px';
         popout.style.height = '520px';
         popout.style.top = '50px';
         popout.style.left = '80px';
@@ -1072,10 +1447,174 @@
         popout.style.left = '2.5vw';
         isCalcMaximized = true;
       }
-      if (desmosCalculator) desmosCalculator.resize();
+      if (desmosCalculator && desmosCalculator.resize) desmosCalculator.resize();
     }
 
     document.getElementById('toggle-calc-btn').addEventListener('click', toggleCalcPopout);
+
+    /* ================= 9.5 NAME RANDOMIZER WHEEL ================= */
+    const classRosters = {
+      "1": ["Saleh A", "Eman A", "Jenan A", "Majid E", "Hailey G", "Maghed G", "Kristopher G", "Mustafa H", "Yaseen H", "Jovanii K", "Cristian M", "Al Anood M", "Alayah M", "Janat M", "Nawal M", "Adrian M", "Yarah M", "Hamza N", "Senan Q", "Ismail Q", "Janeily R", "Eman S", "Khaled S", "Shyanne S", "Mutazz Y"], 
+      "3": ["Remas A", "Abdullah A", "Mukhtar A", "Asma A", "Mayaar A", "Danika C", "Eric G", "Ibrahim H", "Kaden I", "Hiba K", "Fatemah K", "Faidah L", "Emiliano M", "Cole M", "Ahmed M", "Katab N", "Lorenzo O", "Duhaa Q", "Elisabet R", "Mazin S", "Taher S", "Mohamed S", "Abdulkarim S", "Pete V"], 
+      "4": ["Alfaysali A", "Galab A", "Nawah A", "Yousaf A", "Dalal A", "Mohamed A", "Muath A", "Nicole A", "Skylar A", "Miguel C", "Sevaeh D", "Fernanda L", "Malak M", "Sarah M", "Ahmed O", "Ali Q", "Mohammed S", "Marb S", "Nasir S", "Abdulrahman S", "Isabella V", "Adham Z"], 
+      "6": ["Farah A", "Mohsen A", "Mouath A", "Abdulqawi A", "Brooklyn E", "Sophia G", "Muhammad H", "Noor H", "Laniya H", "Ahmed M", "Malik M", "Yasser M", "Anlies P", "Jayda P", "Antarion R", "Ian R", "Khalil S", "Hashed S", "Mohsen S", "Abriella S", "Tabitha T", "Rufus W", "Jayden W"]
+    };
+    
+    const wheelColors = ['#fce181', '#9fdfb6', '#79c2ef', '#c49cce']; // Pastel yellow, green, blue, purple
+    let currentWheelAngle = 0;
+    let isSpinning = false;
+    let wheelAnimFrame;
+    let activeWheelHour = "1";
+
+    function openWheel(hour) {
+      activeWheelHour = hour;
+      document.getElementById('wheel-hour-label').innerText = `- Hour ${hour}`;
+      const popout = document.getElementById('wheel-popout');
+      popout.classList.remove('hidden');
+      popout.classList.add('flex');
+      updateWheel();
+    }
+
+    function closeWheelPopout() {
+      const popout = document.getElementById('wheel-popout');
+      popout.classList.add('hidden');
+      popout.classList.remove('flex');
+    }
+
+    function updateWheel() {
+      const names = classRosters[activeWheelHour];
+      if (!names) return;
+      
+      const canvas = document.getElementById('wheel-canvas');
+      const wCtx = canvas.getContext('2d');
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const radius = cx;
+      const arc = (2 * Math.PI) / names.length;
+
+      // Smart Color Assignment (No adjacent slices with the same color)
+      const sliceColors = [];
+      for (let i = 0; i < names.length; i++) {
+        let baseColorIdx = i % wheelColors.length;
+        let selectedColor = wheelColors[baseColorIdx];
+        
+        // If it's the last slice, check for conflicts with the first or previous slice
+        if (i === names.length - 1 && names.length > 1) {
+          const firstColor = sliceColors[0];
+          const prevColor = sliceColors[i - 1];
+          
+          if (selectedColor === firstColor || selectedColor === prevColor) {
+            // Find a color that isn't the first or previous
+            selectedColor = wheelColors.find(c => c !== firstColor && c !== prevColor);
+          }
+        }
+        sliceColors.push(selectedColor);
+      }
+      
+      wCtx.clearRect(0, 0, canvas.width, canvas.height);
+      wCtx.save();
+      
+      wCtx.translate(cx, cy);
+      wCtx.rotate(currentWheelAngle);
+      wCtx.translate(-cx, -cy);
+
+      for (let i = 0; i < names.length; i++) {
+        const angle = i * arc;
+        wCtx.beginPath();
+        wCtx.fillStyle = sliceColors[i];
+        wCtx.moveTo(cx, cy);
+        wCtx.arc(cx, cy, radius, angle, angle + arc, false);
+        wCtx.lineTo(cx, cy);
+        wCtx.fill();
+        
+        // Draw slice borders for clean aesthetic
+        wCtx.lineWidth = 2;
+        wCtx.strokeStyle = 'rgba(0,0,0,0.05)';
+        wCtx.stroke();
+
+        // Draw text
+        wCtx.save();
+        wCtx.translate(cx, cy);
+        wCtx.rotate(angle + arc / 2);
+        wCtx.textAlign = 'right';
+        wCtx.textBaseline = 'middle';
+        wCtx.fillStyle = '#1e293b';
+        wCtx.font = '28px "Segoe UI", Roboto, sans-serif';
+        wCtx.fillText(names[i], radius - 25, 0);
+        wCtx.restore();
+      }
+      
+      // Draw center white circle to match reference
+      wCtx.beginPath();
+      wCtx.fillStyle = '#ffffff';
+      wCtx.arc(cx, cy, 60, 0, 2 * Math.PI);
+      wCtx.fill();
+      
+      wCtx.restore();
+    }
+
+    function spinWheel() {
+      if (isSpinning) return;
+      isSpinning = true;
+      
+      document.getElementById('winner-banner').classList.add('hidden');
+
+      // Shortened spin time (1.5s to 2.5s)
+      const spinTimeTotal = Math.random() * 1000 + 1500;
+      let spinTime = 0;
+      const spinVelocityTarget = Math.random() * 0.15 + 0.35;
+      let currentVelocity = spinVelocityTarget;
+
+      let lastTime = performance.now();
+
+      function animateSpin(currentTime) {
+        const dt = currentTime - lastTime;
+        lastTime = currentTime;
+        spinTime += dt;
+
+        if (spinTime >= spinTimeTotal) {
+          isSpinning = false;
+          determineWinner();
+          return;
+        }
+
+        const progress = spinTime / spinTimeTotal;
+        const easeOut = 1 - Math.pow(progress, 3); // Cubic ease-out
+        currentVelocity = spinVelocityTarget * easeOut;
+        
+        currentWheelAngle += currentVelocity;
+        currentWheelAngle %= 2 * Math.PI;
+
+        updateWheel();
+        wheelAnimFrame = requestAnimationFrame(animateSpin);
+      }
+      wheelAnimFrame = requestAnimationFrame(animateSpin);
+    }
+
+    function determineWinner() {
+      const names = classRosters[activeWheelHour];
+      const arc = (2 * Math.PI) / names.length;
+      
+      let normAngle = currentWheelAngle % (2 * Math.PI);
+      if (normAngle < 0) normAngle += 2 * Math.PI;
+
+      let winningIndex = Math.floor(((2 * Math.PI - normAngle) % (2 * Math.PI)) / arc);
+      if (winningIndex < 0) winningIndex += names.length;
+
+      const winner = names[winningIndex];
+      
+      document.getElementById('winner-name').innerText = winner;
+      document.getElementById('winner-banner').classList.remove('hidden');
+      
+      initAudioUnlock();
+      if (audioCtx) {
+        const notes = [440, 554.37, 659.25, 880];
+        notes.forEach((freq, idx) => {
+          playMarimbaTone(freq, idx * 0.1);
+        });
+      }
+    }
+
 
     /* ================= 10. DRAGGABLE WINDOW ENGINE ================= */
     function makeDraggable(windowEl, headerEl) {
@@ -1135,20 +1674,20 @@
 
     makeDraggable(document.getElementById('timer-widget'), document.getElementById('timer-header'));
     makeDraggable(document.getElementById('calc-popout'), document.getElementById('calc-header'));
+    makeDraggable(document.getElementById('wheel-popout'), document.getElementById('wheel-header'));
 
     /* ================= 11. EXPORT TO PNG & PDF ================= */
     function getExportCanvas() {
       const exportCanvas = document.createElement('canvas');
       
-      // Calculate bounding box around all drawings or fall back to view bounds
       let minX = 0, minY = 0, maxX = canvas.width, maxY = canvas.height;
 
       if (drawings.length > 0) {
         let allPoints = drawings.flatMap(d => d.points);
-        minX = Math.min(...allPoints.map(p => p.x)) - 50;
-        minY = Math.min(...allPoints.map(p => p.y)) - 50;
-        maxX = Math.max(...allPoints.map(p => p.x)) + 50;
-        maxY = Math.max(...allPoints.map(p => p.y)) + 50;
+        minX = Math.min(...allPoints.map(p => p.x)) - 60;
+        minY = Math.min(...allPoints.map(p => p.y)) - 60;
+        maxX = Math.max(...allPoints.map(p => p.x)) + 60;
+        maxY = Math.max(...allPoints.map(p => p.y)) + 60;
       }
 
       const exportWidth = Math.max(maxX - minX, 800);
@@ -1161,39 +1700,73 @@
       expCtx.fillStyle = '#ffffff';
       expCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
-      // Render vector path drawings relative to bounding box
       expCtx.save();
       expCtx.translate(-minX, -minY);
       
       drawings.forEach(stroke => {
         if (!stroke.points || stroke.points.length === 0) return;
-        expCtx.save();
-        expCtx.lineCap = 'round';
-        expCtx.lineJoin = 'round';
-
-        if (stroke.tool === 'highlighter') {
-          expCtx.globalCompositeOperation = 'multiply';
-          expCtx.strokeStyle = stroke.color;
-          expCtx.lineWidth = stroke.size;
-        } else if (stroke.tool === 'pen') {
-          expCtx.globalCompositeOperation = 'source-over';
-          expCtx.strokeStyle = stroke.color;
-          expCtx.lineWidth = stroke.size;
-        }
-
-        if (stroke.tool !== 'eraser') {
-          expCtx.beginPath();
-          expCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-          for (let i = 1; i < stroke.points.length; i++) {
-            expCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
-          }
-          expCtx.stroke();
-        }
-        expCtx.restore();
+        renderStrokeOnContext(expCtx, stroke);
       });
 
       expCtx.restore();
       return exportCanvas;
+    }
+
+    function renderStrokeOnContext(targetCtx, stroke) {
+      targetCtx.save();
+      targetCtx.lineCap = 'round';
+      targetCtx.lineJoin = 'round';
+
+      if (stroke.tool === 'highlighter') {
+        targetCtx.globalCompositeOperation = 'multiply';
+        targetCtx.strokeStyle = stroke.color;
+        targetCtx.lineWidth = stroke.size;
+      } else if (stroke.tool !== 'eraser') {
+        targetCtx.globalCompositeOperation = 'source-over';
+        targetCtx.strokeStyle = stroke.color;
+        targetCtx.lineWidth = stroke.size;
+      }
+
+      if (stroke.tool !== 'eraser') {
+        const p1 = stroke.points[0];
+        const p2 = stroke.points[stroke.points.length - 1];
+
+        if (['line', 'arrow', 'rect', 'circle', 'triangle'].includes(stroke.tool)) {
+          targetCtx.beginPath();
+          if (stroke.tool === 'line') {
+            targetCtx.moveTo(p1.x, p1.y);
+            targetCtx.lineTo(p2.x, p2.y);
+            targetCtx.stroke();
+          } else if (stroke.tool === 'arrow') {
+            drawArrow(targetCtx, p1.x, p1.y, p2.x, p2.y, stroke.size);
+          } else if (stroke.tool === 'rect') {
+            targetCtx.strokeRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+          } else if (stroke.tool === 'circle') {
+            const radius = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+            targetCtx.arc(p1.x, p1.y, radius, 0, Math.PI * 2);
+            targetCtx.stroke();
+          } else if (stroke.tool === 'triangle') {
+            targetCtx.moveTo(p1.x + (p2.x - p1.x) / 2, p1.y);
+            targetCtx.lineTo(p1.x, p2.y);
+            targetCtx.lineTo(p2.x, p2.y);
+            targetCtx.closePath();
+            targetCtx.stroke();
+          }
+        } else if (stroke.tool === 'text') {
+          targetCtx.font = `${stroke.size}px sans-serif`;
+          targetCtx.fillStyle = stroke.color;
+          targetCtx.textBaseline = 'top';
+          targetCtx.fillText(stroke.text || '', p1.x, p1.y);
+        } else {
+          targetCtx.beginPath();
+          targetCtx.moveTo(p1.x, p1.y);
+          for (let i = 1; i < stroke.points.length; i++) {
+            targetCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+          }
+          targetCtx.stroke();
+        }
+      }
+      targetCtx.restore();
     }
 
     function getDateFilenameString() {
@@ -1225,8 +1798,8 @@
 
     /* ================= 12. INITIALIZATION ON LOAD ================= */
     window.addEventListener('load', () => {
-      setCanvasBackground('blank');
-      resizeCanvas();
+      createNewBoard('Whiteboard 1');
+      setTimeout(resizeCanvas, 50);
       setTool('pen');
       setColor('#1e293b');
       updateSizeControlsUI();
