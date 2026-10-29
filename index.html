@@ -234,6 +234,10 @@
       <i class="fa-solid fa-plus text-[10px]"></i>
       <span class="text-[11px] font-medium">New Board</span>
     </button>
+    <button onclick="createNewWebTab()" class="ml-1 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-2 py-1 rounded-md text-xs flex items-center space-x-1 transition border border-slate-700/60 shrink-0" title="Open Web Page">
+      <i class="fa-solid fa-globe text-[10px]"></i>
+      <span class="text-[11px] font-medium">Web Tab</span>
+    </button>
   </div>
 
   <!-- ================= MAIN WORKSPACE CANVAS AREA ================= -->
@@ -241,6 +245,9 @@
     
     <!-- Whiteboard Drawing Canvas -->
     <canvas id="whiteboard" class="absolute inset-0 bg-blank z-0 cursor-crosshair block w-full h-full"></canvas>
+
+    <!-- Web Tab Iframe container -->
+    <iframe id="web-tab-iframe" class="absolute inset-0 w-full h-full border-0 z-10 hidden bg-white"></iframe>
 
     <!-- Visual Cursor Indicator for Eraser -->
     <div id="eraser-cursor" class="pointer-events-none absolute hidden rounded-full border border-slate-700 bg-red-400/20 z-10 -translate-x-1/2 -translate-y-1/2 shadow-sm"></div>
@@ -492,6 +499,19 @@
     <!-- System Toast Notifications -->
     <div id="toast-container" class="absolute bottom-4 right-4 z-[100] flex flex-col space-y-2 pointer-events-none"></div>
 
+    <!-- Custom URL Prompt Modal -->
+    <div id="url-prompt-modal" class="hidden absolute inset-0 z-[110] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center">
+      <div class="bg-slate-900 border border-slate-700 p-5 rounded-xl shadow-2xl w-80 flex flex-col space-y-4">
+        <h3 class="text-white font-semibold flex items-center space-x-2"><i class="fa-solid fa-globe text-indigo-400"></i><span>Open Web Tab</span></h3>
+        <p class="text-xs text-slate-400">Enter a website URL to open it in a new tab.</p>
+        <input type="text" id="url-input-field" onkeydown="if(event.key === 'Enter') submitUrlPrompt()" placeholder="e.g., phet.colorado.edu" class="w-full bg-slate-800 border border-slate-600 text-white px-3 py-2 rounded focus:outline-none focus:border-indigo-500 text-sm">
+        <div class="flex justify-end space-x-2 pt-1">
+          <button onclick="closeUrlPrompt()" class="px-3 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-700 rounded transition">Cancel</button>
+          <button onclick="submitUrlPrompt()" class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded transition font-medium shadow">Open</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ================= TIME IS UP SOUND & VISUAL ALARM BANNER ================= -->
     <div id="alarm-banner" class="hidden absolute inset-x-0 top-16 z-50 mx-auto w-11/12 max-w-lg bg-red-600 text-white p-4 rounded-xl shadow-2xl border-2 border-red-400 alarm-active flex items-center justify-between">
       <div class="flex items-center space-x-3">
@@ -592,7 +612,7 @@
     const MAX_ZOOM = 5.0;
     const MAX_HISTORY = 35;
 
-    /* ================= MULTIPLE BOARDS ENGINE ================= */
+    /* ================= MULTIPLE BOARDS & WEB TABS ENGINE ================= */
     function createNewBoard(title = null) {
       saveActiveBoardState();
 
@@ -600,6 +620,7 @@
       const newBoard = {
         id: newId,
         title: title || `Board ${boardIdCounter++}`,
+        type: 'whiteboard',
         drawings: [],
         cameraOffset: { x: 0, y: 0 },
         cameraZoom: 1,
@@ -612,6 +633,59 @@
       switchBoard(newId);
     }
 
+    function createNewWebTab() {
+      const modal = document.getElementById('url-prompt-modal');
+      const input = document.getElementById('url-input-field');
+      if (modal && input) {
+        input.value = '';
+        modal.classList.remove('hidden');
+        input.focus();
+      }
+    }
+
+    function closeUrlPrompt() {
+      const modal = document.getElementById('url-prompt-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function submitUrlPrompt() {
+      const input = document.getElementById('url-input-field');
+      const urlInput = input ? input.value : '';
+
+      if (!urlInput || urlInput.trim() === '') {
+        closeUrlPrompt();
+        return;
+      }
+
+      let url = urlInput.trim();
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+
+      saveActiveBoardState();
+
+      const newId = 'web_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      
+      let title = 'Web Tab';
+      try {
+        const urlObj = new URL(url);
+        title = urlObj.hostname.replace('www.', '');
+      } catch(e) {}
+
+      const newBoard = {
+        id: newId,
+        title: title,
+        type: 'web',
+        url: url
+      };
+
+      boards.push(newBoard);
+      switchBoard(newId);
+      closeUrlPrompt();
+      
+      showDiagnosticToast("Note: Some modern websites block being opened inside other applications for security.", "info");
+    }
+
     function switchBoard(id) {
       if (activeBoardId === id) return;
 
@@ -621,22 +695,48 @@
       const board = boards.find(b => b.id === id);
       if (!board) return;
 
-      drawings = board.drawings;
-      cameraOffset = { ...board.cameraOffset };
-      cameraZoom = board.cameraZoom;
-      currentBackground = board.background;
-      historyStack = board.historyStack;
-      historyStep = board.historyStep;
+      drawings = board.drawings || [];
+      cameraOffset = board.cameraOffset ? { ...board.cameraOffset } : { x: 0, y: 0 };
+      cameraZoom = board.cameraZoom || 1;
+      currentBackground = board.background || 'blank';
+      historyStack = board.historyStack || [];
+      historyStep = board.historyStep !== undefined ? board.historyStep : -1;
 
-      setCanvasBackground(currentBackground);
+      // Handle UI toggle for Web vs Whiteboard
+      const iframe = document.getElementById('web-tab-iframe');
+      const whiteboard = document.getElementById('whiteboard');
+      const sidebar = document.getElementById('left-sidebar');
+      const showTabBtn = document.getElementById('show-sidebar-tab');
+
+      if (board.type === 'web') {
+        whiteboard.classList.add('hidden');
+        sidebar.classList.add('hidden');
+        showTabBtn.classList.add('hidden');
+        iframe.src = board.url;
+        iframe.classList.remove('hidden');
+      } else {
+        whiteboard.classList.remove('hidden');
+        iframe.classList.add('hidden');
+        iframe.src = ''; // Stop video/audio from continuing to play in background
+        
+        // Restore sidebar visibility based on its previous state
+        const toggleText = document.getElementById('toggle-sidebar-text');
+        if (toggleText && toggleText.innerText === 'Show Tools') {
+          showTabBtn.classList.remove('hidden');
+        } else {
+          sidebar.classList.remove('hidden');
+        }
+        setCanvasBackground(currentBackground);
+      }
+
       renderTabs();
-      redrawCanvas();
+      if (board.type !== 'web') redrawCanvas();
     }
 
     function saveActiveBoardState() {
       if (!activeBoardId) return;
       const board = boards.find(b => b.id === activeBoardId);
-      if (board) {
+      if (board && board.type !== 'web') {
         board.drawings = drawings;
         board.cameraOffset = { ...cameraOffset };
         board.cameraZoom = cameraZoom;
@@ -699,7 +799,7 @@
         tabEl.onclick = () => switchBoard(board.id);
 
         tabEl.innerHTML = `
-          <i class="fa-solid fa-pen-ruler text-[10px] ${isActive ? 'text-indigo-400' : 'text-slate-500'}"></i>
+          <i class="${board.type === 'web' ? 'fa-solid fa-globe' : 'fa-solid fa-pen-ruler'} text-[10px] ${isActive ? 'text-indigo-400' : 'text-slate-500'}"></i>
           <span class="max-w-[110px] truncate" title="${board.title}">${board.title}</span>
           <button onclick="renameBoard('${board.id}', event)" class="hover:text-amber-300 text-[10px] opacity-60 hover:opacity-100 px-0.5" title="Rename Board">
             <i class="fa-solid fa-pen"></i>
